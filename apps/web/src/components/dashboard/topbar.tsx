@@ -1,4 +1,4 @@
-import { CalendarIcon, ChevronDownIcon } from "./icons";
+import { CalendarIcon, ChevronDownIcon } from "../icons";
 
 export function DashboardTopbar({ name }: { name: string }) {
   const initial = name.slice(0, 1).toUpperCase();

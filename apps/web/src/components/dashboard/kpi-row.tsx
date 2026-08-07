@@ -1,5 +1,5 @@
 import { mockKpis } from "./mock-data";
-import { TrendUpIcon } from "./icons";
+import { TrendUpIcon } from "../icons";
 
 export function KpiRow() {
   return (

@@ -1,5 +1,5 @@
 import { mockInvestments } from "./mock-data";
-import { AlertIcon, HouseIcon, TrendUpIcon } from "./icons";
+import { AlertIcon, HouseIcon, TrendUpIcon } from "../icons";
 
 export function InvestmentsTable() {
   return (

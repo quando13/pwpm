@@ -14,6 +14,8 @@ Items marked **Assumption** encode a business rule not yet explicitly stated els
 
 **Decisions confirmed 2026-08-06** (superseding earlier assumptions): renovation expense is treated as Expense, not capitalized. Equity uses Weighted Average Cost. Rental Property gets an explicit `disposal_proceeds` transaction type. Equity does not compute trailing-12-month figures.
 
+**Decisions confirmed 2026-08-07**: Equity's Total Expense also includes standalone `brokerage_fee` transactions (`use-cases.md` UC-03 lists Brokerage fee as its own recordable transaction type for Equity; the original formula only summed `buy.fee`/`sell.fee` and silently ignored a standalone fee not tied to a specific buy/sell). `capital_contribution` is **not** a valid transaction type for Equity investments — it exists to record Rental Property's down payment (see that section's Classification Rule); Equity's invested capital is derived entirely from buy transactions, so `packages/shared`'s `TRANSACTION_TYPES_BY_INVESTMENT_TYPE.equity` excludes it.
+
 ---
 
 # Shared Definitions
@@ -50,7 +52,7 @@ Invested Capital       = Remaining Cost Basis
 Outstanding Financing = 0   (margin loan is out of MVP scope)
 Equity                = Current Value − Outstanding Financing
 Total Income           = Σ(dividend.amount)  — cumulative since acquisition (no trailing-12-month variant; see Snapshot Periods)
-Total Expense           = Σ(buy.fee) + Σ(sell.fee)  — cumulative since acquisition
+Total Expense           = Σ(buy.fee) + Σ(sell.fee) + Σ(brokerage_fee.amount)  — cumulative since acquisition
 Cash Flow               = Total Income − Total Expense
 Realized Gain/Loss     = Σ(sell.quantity × (sell.price_per_unit − Average Cost/Unit at time of sale)) − Σ(sell.fee)
 Unrealized Gain/Loss   = Current Value − Remaining Cost Basis

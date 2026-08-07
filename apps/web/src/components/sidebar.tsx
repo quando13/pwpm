@@ -1,15 +1,19 @@
+import Link from "next/link";
+
 import { signOut } from "@/lib/auth/actions";
 
 import { BarsIcon, GearIcon, GridIcon, LayersIcon, LogoMarkIcon, LogoutIcon, SwapIcon } from "./icons";
 
-const NAV_ITEMS = [
-  { label: "Tổng quan", icon: GridIcon, active: true },
-  { label: "Khoản đầu tư", icon: LayersIcon, active: false },
-  { label: "Giao dịch", icon: SwapIcon, active: false },
-  { label: "Báo cáo", icon: BarsIcon, active: false },
+export type ActiveNav = "dashboard" | "investments" | "transactions" | "reports";
+
+const NAV_ITEMS: { key: ActiveNav; label: string; href: string; icon: typeof GridIcon }[] = [
+  { key: "dashboard", label: "Tổng quan", href: "/", icon: GridIcon },
+  { key: "investments", label: "Khoản đầu tư", href: "/investments", icon: LayersIcon },
+  { key: "transactions", label: "Giao dịch", href: "#", icon: SwapIcon },
+  { key: "reports", label: "Báo cáo", href: "#", icon: BarsIcon },
 ];
 
-export function DashboardSidebar() {
+export function Sidebar({ active }: { active: ActiveNav }) {
   return (
     <aside className="flex min-h-0 flex-col gap-1 border-r border-input px-3.5 py-5">
       <div className="flex items-center gap-2.5 px-2 pb-5 pt-0.5">
@@ -27,18 +31,19 @@ export function DashboardSidebar() {
       <div className="px-2.5 pb-1.5 pt-3.5 text-[10.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
         Điều hướng
       </div>
-      {NAV_ITEMS.map(({ label, icon: ItemIcon, active }) => (
-        <a
-          key={label}
+      {NAV_ITEMS.map(({ key, label, href, icon: ItemIcon }) => (
+        <Link
+          key={key}
+          href={href}
           className={
-            active
+            key === active
               ? "flex w-full items-center gap-2.5 rounded-[9px] bg-gold-soft px-2.5 py-2 text-[13.5px] font-semibold text-gold-bright shadow-[inset_2px_0_0_var(--gold)]"
               : "flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-[13.5px] font-medium text-muted-foreground hover:bg-surface-2 hover:text-foreground"
           }
         >
           <ItemIcon className="h-[17px] w-[17px] flex-none" />
           {label}
-        </a>
+        </Link>
       ))}
 
       <div className="flex-1" />

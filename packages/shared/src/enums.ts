@@ -55,13 +55,9 @@ export const TRANSACTION_TYPES_BY_INVESTMENT_TYPE: Record<
   InvestmentType,
   readonly TransactionType[]
 > = {
-  equity: [
-    "capital_contribution",
-    "buy_shares",
-    "sell_shares",
-    "dividend_received",
-    "brokerage_fee",
-  ],
+  // capital_contribution is Rental Property only — Equity's invested capital is
+  // derived entirely from buy_shares, per calculation-spec.md (confirmed 2026-08-07).
+  equity: ["buy_shares", "sell_shares", "dividend_received", "brokerage_fee"],
   rental_property: [
     "capital_contribution",
     "rental_income",
