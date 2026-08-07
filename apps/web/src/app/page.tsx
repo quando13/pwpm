@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@pwpm/ui";
 
-import { signOut } from "@/lib/auth/actions";
+import { Dashboard } from "@/components/dashboard/dashboard";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -10,21 +10,11 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background font-sans text-foreground">
-      <h1 className="font-[var(--font-serif)] text-2xl font-semibold">PwPM</h1>
-      <p className="text-sm text-muted-foreground">Personal Wealth &amp; Portfolio Management</p>
-
-      {user ? (
-        <>
-          <p className="text-sm">Đã đăng nhập với {user.email}</p>
-          <form action={signOut}>
-            <Button variant="outline" type="submit">
-              Đăng xuất
-            </Button>
-          </form>
-        </>
-      ) : (
+  if (!user) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background font-sans text-foreground">
+        <h1 className="font-[var(--font-serif)] text-2xl font-semibold">PwPM</h1>
+        <p className="text-sm text-muted-foreground">Personal Wealth &amp; Portfolio Management</p>
         <div className="flex gap-3">
           <Button asChild>
             <Link href="/login">Đăng nhập</Link>
@@ -33,7 +23,12 @@ export default async function Home() {
             <Link href="/signup">Tạo tài khoản</Link>
           </Button>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", user.id).single();
+  const name = profile?.display_name ?? user.email?.split("@")[0] ?? "bạn";
+
+  return <Dashboard name={name} />;
 }

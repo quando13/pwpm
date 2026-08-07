@@ -3,9 +3,9 @@
    ("packages/ui ... No business logic. No Supabase calls.").
 
    Palette: "private wealth" dark theme — deep warm charcoal + metallic gold, with
-   emerald (equity / positive) and ruby (rental property.. wait see below / negative)
-   as the two supporting jewel tones. Light theme intentionally deferred — dark only
-   for now, per product direction 2026-08-07. */
+   emerald (equity / positive) and ruby (rental property / negative) as the two
+   supporting jewel tones. Light theme intentionally deferred — dark only for now,
+   per product direction 2026-08-07. */
 
 :root {
   color-scheme: dark;
@@ -56,6 +56,10 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-destructive: var(--destructive);
   --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-gold-soft: var(--gold-soft);
   --color-emerald: var(--emerald);
+  --color-emerald-soft: var(--emerald-soft);
   --color-ruby: var(--ruby);
+  --color-ruby-soft: var(--ruby-soft);
 }
