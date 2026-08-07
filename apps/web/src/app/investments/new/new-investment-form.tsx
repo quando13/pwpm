@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Button, Input } from "@pwpm/ui";
-import type { Investment } from "@pwpm/shared";
+import type { FinancingSource, Investment } from "@pwpm/shared";
 
 import { createInvestment } from "@/lib/investments/actions";
 
@@ -18,6 +18,7 @@ export type InitialInvestmentValues = {
 export function NewInvestmentForm({ initial }: { initial?: InitialInvestmentValues }) {
   const [state, action, pending] = useActionState(createInvestment, undefined);
   const [type, setType] = useState<Investment["investment_type"]>(initial?.investment_type ?? "equity");
+  const [financingSource, setFinancingSource] = useState<FinancingSource>("personal_capital");
 
   return (
     <form action={action} className="flex max-w-sm flex-col gap-4 rounded-[14px] border border-input bg-surface p-5">
@@ -94,20 +95,72 @@ export function NewInvestmentForm({ initial }: { initial?: InitialInvestmentValu
           </div>
         </>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="purchase_value" className="text-sm font-medium">
-            Tổng giá trị mua (₫)
-          </label>
-          <Input
-            id="purchase_value"
-            name="purchase_value"
-            type="number"
-            min="0"
-            step="any"
-            defaultValue={initial?.purchase_value}
-            required
-          />
-        </div>
+        <>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="purchase_value" className="text-sm font-medium">
+              Vốn góp ban đầu (₫)
+            </label>
+            <Input
+              id="purchase_value"
+              name="purchase_value"
+              type="number"
+              min="0"
+              step="any"
+              defaultValue={initial?.purchase_value}
+              required
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5 border-t border-input pt-3.5">
+            <span className="text-sm font-medium">Nguồn vốn</span>
+            <div className="flex gap-2">
+              <TypeButton
+                label="Vốn tự có"
+                active={financingSource === "personal_capital"}
+                onClick={() => setFinancingSource("personal_capital")}
+              />
+              <TypeButton
+                label="Vay ngân hàng"
+                active={financingSource === "bank_loan"}
+                onClick={() => setFinancingSource("bank_loan")}
+              />
+            </div>
+          </div>
+          <input type="hidden" name="financing_source_type" value={financingSource} />
+
+          {financingSource === "bank_loan" && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="principal_amount" className="text-sm font-medium">
+                    Số tiền vay (₫)
+                  </label>
+                  <Input id="principal_amount" name="principal_amount" type="number" min="0" step="any" required />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="interest_rate" className="text-sm font-medium">
+                    Lãi suất (%/năm)
+                  </label>
+                  <Input id="interest_rate" name="interest_rate" type="number" min="0" step="any" required />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="loan_term_months" className="text-sm font-medium">
+                    Thời hạn (tháng)
+                  </label>
+                  <Input id="loan_term_months" name="loan_term_months" type="number" min="0" step="1" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="lender_name" className="text-sm font-medium">
+                    Ngân hàng
+                  </label>
+                  <Input id="lender_name" name="lender_name" />
+                </div>
+              </div>
+            </>
+          )}
+        </>
       )}
 
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}

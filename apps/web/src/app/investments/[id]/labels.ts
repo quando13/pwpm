@@ -1,4 +1,9 @@
-import type { ReferenceEventType, TransactionType, ValuationSource } from "@pwpm/shared";
+import type { FinancingSource, ReferenceEventType, TransactionType, ValuationSource } from "@pwpm/shared";
+
+export const FINANCING_SOURCE_LABEL: Record<FinancingSource, string> = {
+  personal_capital: "Vốn tự có",
+  bank_loan: "Vay ngân hàng",
+};
 
 export const TRANSACTION_TYPE_LABEL: Record<TransactionType, string> = {
   capital_contribution: "Vốn góp",

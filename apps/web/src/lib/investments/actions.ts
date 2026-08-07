@@ -3,15 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { FINANCING_SOURCES } from "@pwpm/shared";
 
 import { recomputeInvestmentSnapshot } from "@/lib/investments/recompute";
 import { createClient } from "@/lib/supabase/server";
-
-// Rental Property's full calculation engine (Financing, outstanding balance, etc.) is
-// still Sprint 2.1 work — but registering one and recording its initial capital
-// contribution is simple enough (a single amount, per calculation-spec.md's Rental
-// Property "Invested Capital = Σ(capital_contribution.amount)") to support now,
-// alongside Equity, per the 2026-08-07 Investment List retro.
 
 const baseInvestmentSchema = z.object({
   name: z.string().trim().min(1, { error: "Nhập tên khoản đầu tư." }).max(200),
@@ -30,6 +25,16 @@ const rentalValueSchema = z.object({
   purchase_value: z.coerce
     .number({ error: "Nhập tổng giá trị mua hợp lệ." })
     .positive({ error: "Tổng giá trị mua phải lớn hơn 0." }),
+});
+
+// UC-02 Register Investment Financing — personal capital or bank loan, per
+// calculation-spec.md ("0 for personal_capital", interest_rate null for personal_capital).
+const financingSchema = z.object({
+  source_type: z.enum(FINANCING_SOURCES, { error: "Chọn nguồn vốn." }),
+  principal_amount: z.coerce.number({ error: "Nhập số tiền vay hợp lệ." }).nonnegative(),
+  interest_rate: z.coerce.number({ error: "Nhập lãi suất hợp lệ." }).nonnegative(),
+  loan_term_months: z.coerce.number().int().positive().nullable(),
+  lender_name: z.string().trim().max(200).nullable(),
 });
 
 export type InvestmentFormState = { error?: string } | undefined;
@@ -126,6 +131,36 @@ export async function createInvestment(
   if (txError) {
     await supabase.from("investments").delete().eq("id", investment.id);
     return { error: txError.message };
+  }
+
+  if (base.data.investment_type === "rental_property") {
+    const sourceType = formData.get("financing_source_type");
+    const isBankLoan = sourceType === "bank_loan";
+    const financingParsed = financingSchema.safeParse({
+      source_type: sourceType,
+      principal_amount: isBankLoan ? formData.get("principal_amount") : 0,
+      interest_rate: isBankLoan ? formData.get("interest_rate") : 0,
+      loan_term_months: isBankLoan && formData.get("loan_term_months") ? formData.get("loan_term_months") : null,
+      lender_name: isBankLoan && formData.get("lender_name") ? formData.get("lender_name") : null,
+    });
+    if (!financingParsed.success) {
+      await supabase.from("investments").delete().eq("id", investment.id);
+      return { error: financingParsed.error.issues[0]?.message ?? "Dữ liệu tài trợ không hợp lệ." };
+    }
+
+    const { error: financingError } = await supabase.from("financings").insert({
+      investment_id: investment.id,
+      source_type: financingParsed.data.source_type,
+      principal_amount: financingParsed.data.principal_amount,
+      interest_rate: isBankLoan ? financingParsed.data.interest_rate : null,
+      loan_term_months: financingParsed.data.loan_term_months,
+      start_date: base.data.acquisition_date,
+      lender_name: financingParsed.data.lender_name,
+    });
+    if (financingError) {
+      await supabase.from("investments").delete().eq("id", investment.id);
+      return { error: financingError.message };
+    }
   }
 
   await recomputeInvestmentSnapshot(investment.id);

@@ -13,7 +13,8 @@ export function OverviewTab({
   if (investment.investment_type !== "equity") {
     return (
       <div className="rounded-[14px] border border-dashed border-input py-14 text-center text-[12.5px] text-muted-foreground">
-        Chưa hỗ trợ tính hiệu suất cho BĐS cho thuê — cần Financing &amp; công thức của Sprint 2.1.
+        Chưa có Tổng quan hiệu suất cho BĐS cho thuê — công thức đã sẵn sàng (packages/domain), việc tự động
+        tính lại sau mỗi giao dịch sẽ có ở Sprint 2.2. Xem dư nợ hiện tại ở tab Tài trợ.
       </div>
     );
   }

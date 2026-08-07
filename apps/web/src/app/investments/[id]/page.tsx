@@ -2,12 +2,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { formatDate, formatVND } from "@pwpm/utils";
 import { REFERENCE_EVENT_TYPES_BY_INVESTMENT_TYPE, TRANSACTION_TYPES_BY_INVESTMENT_TYPE } from "@pwpm/shared";
-import type { Investment, PerformanceSnapshot, ReferenceEvent, Transaction, Valuation } from "@pwpm/shared";
+import type { Financing, Investment, PerformanceSnapshot, ReferenceEvent, Transaction, Valuation } from "@pwpm/shared";
 
 import { AppShell } from "@/components/app-shell";
 import { HouseIcon, TrendUpIcon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/server";
 
+import { FinancingTab } from "./financing-tab";
 import { REFERENCE_EVENT_TYPE_LABEL, TRANSACTION_TYPE_LABEL, VALUATION_SOURCE_LABEL } from "./labels";
 import { OverviewTab } from "./overview-tab";
 import { ReferenceEventForm } from "./reference-event-form";
@@ -19,7 +20,7 @@ const TYPE_LABEL: Record<Investment["investment_type"], string> = {
   rental_property: "BĐS cho thuê",
 };
 
-const TABS = ["overview", "transactions", "valuations", "events"] as const;
+const TABS = ["overview", "transactions", "financing", "valuations", "events"] as const;
 type Tab = (typeof TABS)[number];
 
 export default async function InvestmentDetailPage({
@@ -73,6 +74,13 @@ export default async function InvestmentDetailPage({
     .order("event_date", { ascending: false });
   const events = (eventsData ?? []) as ReferenceEvent[];
 
+  const { data: financingsData } = await supabase
+    .from("financings")
+    .select("*")
+    .eq("investment_id", investment.id)
+    .order("start_date", { ascending: true });
+  const financings = (financingsData ?? []) as Financing[];
+
   const { data: snapshotsData } = await supabase
     .from("performance_snapshots")
     .select("*")
@@ -118,6 +126,13 @@ export default async function InvestmentDetailPage({
             label="Giao dịch"
             active={activeTab === "transactions"}
           />
+          {investment.investment_type === "rental_property" && (
+            <TabLink
+              href={`/investments/${investment.id}?tab=financing`}
+              label="Tài trợ"
+              active={activeTab === "financing"}
+            />
+          )}
           <TabLink
             href={`/investments/${investment.id}?tab=valuations`}
             label="Định giá"
@@ -131,6 +146,10 @@ export default async function InvestmentDetailPage({
         </div>
 
         {activeTab === "overview" && <OverviewTab investment={investment} snapshots={snapshots} />}
+
+        {activeTab === "financing" && investment.investment_type === "rental_property" && (
+          <FinancingTab financings={financings} transactions={transactions} />
+        )}
 
         {activeTab === "transactions" && (
           <div className="grid grid-cols-[1fr_320px] items-start gap-4">
