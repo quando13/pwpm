@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { VALUATION_SOURCES } from "@pwpm/shared";
@@ -63,4 +64,52 @@ export async function createValuation(
 
   await recomputeInvestmentSnapshot(investment.id);
   redirect(`/investments/${investment.id}?tab=valuations`);
+}
+
+// Same effect as createValuation, but for the Investment List's inline "Định giá mới
+// nhất" editor (Retro 2, 2026-08-07) — stays on /investments (revalidate, no redirect)
+// and takes plain args since it's called directly from a Client Component, not a form.
+export async function quickAddValuation(
+  investmentId: string,
+  estimatedValue: number,
+): Promise<{ error?: string }> {
+  const parsed = z
+    .number({ error: "Nhập giá trị hợp lệ." })
+    .positive({ error: "Giá trị phải lớn hơn 0." })
+    .safeParse(estimatedValue);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: investment } = await supabase
+    .from("investments")
+    .select("id")
+    .eq("id", investmentId)
+    .eq("customer_id", user.id)
+    .single();
+  if (!investment) {
+    return { error: "Không tìm thấy khoản đầu tư." };
+  }
+
+  const { error: insertError } = await supabase.from("valuations").insert({
+    investment_id: investment.id,
+    valuation_date: new Date().toISOString().slice(0, 10),
+    estimated_value: parsed.data,
+    valuation_source: "manual_estimate",
+  });
+  if (insertError) {
+    return { error: insertError.message };
+  }
+
+  await recomputeInvestmentSnapshot(investment.id);
+  revalidatePath("/investments");
+  return {};
 }

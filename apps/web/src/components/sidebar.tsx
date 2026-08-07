@@ -8,7 +8,7 @@ export type ActiveNav = "dashboard" | "investments" | "transactions" | "reports"
 
 const NAV_ITEMS: { key: ActiveNav; label: string; href: string; icon: typeof GridIcon }[] = [
   { key: "dashboard", label: "Tổng quan", href: "/", icon: GridIcon },
-  { key: "investments", label: "Khoản đầu tư", href: "/investments", icon: LayersIcon },
+  { key: "investments", label: "Danh mục", href: "/investments", icon: LayersIcon },
   { key: "transactions", label: "Giao dịch", href: "#", icon: SwapIcon },
   { key: "reports", label: "Báo cáo", href: "#", icon: BarsIcon },
 ];

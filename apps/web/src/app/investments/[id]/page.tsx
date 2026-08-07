@@ -96,7 +96,7 @@ export default async function InvestmentDetailPage({
       <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto px-6 py-5">
         <div>
           <Link href="/investments" className="text-[12.5px] text-muted-foreground hover:text-foreground">
-            ← Khoản đầu tư
+            ← Danh mục
           </Link>
           <div className="mt-1 flex items-center gap-2.5">
             <span
