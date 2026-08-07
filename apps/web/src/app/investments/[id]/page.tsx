@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { formatDate, formatVND } from "@pwpm/utils";
-import { TRANSACTION_TYPES_BY_INVESTMENT_TYPE } from "@pwpm/shared";
-import type { Investment, Transaction, Valuation } from "@pwpm/shared";
+import { REFERENCE_EVENT_TYPES_BY_INVESTMENT_TYPE, TRANSACTION_TYPES_BY_INVESTMENT_TYPE } from "@pwpm/shared";
+import type { Investment, PerformanceSnapshot, ReferenceEvent, Transaction, Valuation } from "@pwpm/shared";
 
 import { AppShell } from "@/components/app-shell";
 import { HouseIcon, TrendUpIcon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/server";
 
-import { TRANSACTION_TYPE_LABEL, VALUATION_SOURCE_LABEL } from "./labels";
+import { REFERENCE_EVENT_TYPE_LABEL, TRANSACTION_TYPE_LABEL, VALUATION_SOURCE_LABEL } from "./labels";
+import { OverviewTab } from "./overview-tab";
+import { ReferenceEventForm } from "./reference-event-form";
 import { TransactionForm } from "./transaction-form";
 import { ValuationForm } from "./valuation-form";
 
@@ -16,6 +18,9 @@ const TYPE_LABEL: Record<Investment["investment_type"], string> = {
   equity: "Cổ phiếu",
   rental_property: "BĐS cho thuê",
 };
+
+const TABS = ["overview", "transactions", "valuations", "events"] as const;
+type Tab = (typeof TABS)[number];
 
 export default async function InvestmentDetailPage({
   params,
@@ -26,7 +31,7 @@ export default async function InvestmentDetailPage({
 }) {
   const { id } = await params;
   const { tab } = await searchParams;
-  const activeTab = tab === "valuations" ? "valuations" : "transactions";
+  const activeTab: Tab = TABS.includes(tab as Tab) ? (tab as Tab) : "overview";
 
   const supabase = await createClient();
   const {
@@ -61,7 +66,22 @@ export default async function InvestmentDetailPage({
     .order("valuation_date", { ascending: false });
   const valuations = (valuationsData ?? []) as Valuation[];
 
+  const { data: eventsData } = await supabase
+    .from("reference_events")
+    .select("*")
+    .eq("investment_id", investment.id)
+    .order("event_date", { ascending: false });
+  const events = (eventsData ?? []) as ReferenceEvent[];
+
+  const { data: snapshotsData } = await supabase
+    .from("performance_snapshots")
+    .select("*")
+    .eq("investment_id", investment.id)
+    .order("snapshot_date", { ascending: true });
+  const snapshots = (snapshotsData ?? []) as PerformanceSnapshot[];
+
   const allowedTransactionTypes = TRANSACTION_TYPES_BY_INVESTMENT_TYPE[investment.investment_type];
+  const allowedEventTypes = REFERENCE_EVENT_TYPES_BY_INVESTMENT_TYPE[investment.investment_type];
 
   return (
     <AppShell active="investments">
@@ -92,15 +112,27 @@ export default async function InvestmentDetailPage({
         </div>
 
         <div className="flex gap-1 border-b border-input">
-          <TabLink href={`/investments/${investment.id}`} label="Giao dịch" active={activeTab === "transactions"} />
+          <TabLink href={`/investments/${investment.id}`} label="Tổng quan" active={activeTab === "overview"} />
+          <TabLink
+            href={`/investments/${investment.id}?tab=transactions`}
+            label="Giao dịch"
+            active={activeTab === "transactions"}
+          />
           <TabLink
             href={`/investments/${investment.id}?tab=valuations`}
             label="Định giá"
             active={activeTab === "valuations"}
           />
+          <TabLink
+            href={`/investments/${investment.id}?tab=events`}
+            label="Sự kiện"
+            active={activeTab === "events"}
+          />
         </div>
 
-        {activeTab === "transactions" ? (
+        {activeTab === "overview" && <OverviewTab investment={investment} snapshots={snapshots} />}
+
+        {activeTab === "transactions" && (
           <div className="grid grid-cols-[1fr_320px] items-start gap-4">
             <div className="rounded-[14px] border border-input bg-surface p-4">
               {transactions.length === 0 ? (
@@ -146,7 +178,9 @@ export default async function InvestmentDetailPage({
             </div>
             <TransactionForm investmentId={investment.id} allowedTypes={allowedTransactionTypes} />
           </div>
-        ) : (
+        )}
+
+        {activeTab === "valuations" && (
           <div className="grid grid-cols-[1fr_320px] items-start gap-4">
             <div className="rounded-[14px] border border-input bg-surface p-4">
               {valuations.length === 0 ? (
@@ -179,6 +213,33 @@ export default async function InvestmentDetailPage({
               )}
             </div>
             <ValuationForm investmentId={investment.id} />
+          </div>
+        )}
+
+        {activeTab === "events" && (
+          <div className="grid grid-cols-[1fr_320px] items-start gap-4">
+            <div className="rounded-[14px] border border-input bg-surface p-4">
+              {events.length === 0 ? (
+                <p className="py-8 text-center text-[12.5px] text-muted-foreground">Chưa có sự kiện nào.</p>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {events.map((ev) => (
+                    <li key={ev.id} className="border-b border-input pb-3 last:border-b-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center rounded-full bg-gold-soft px-2 py-[3px] text-[10.5px] font-semibold text-gold-bright">
+                          {REFERENCE_EVENT_TYPE_LABEL[ev.event_type]}
+                        </span>
+                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                          {formatDate(ev.event_date)}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-[12.5px]">{ev.description}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <ReferenceEventForm investmentId={investment.id} allowedTypes={allowedEventTypes} />
           </div>
         )}
       </div>

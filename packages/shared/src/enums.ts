@@ -68,3 +68,22 @@ export const TRANSACTION_TYPES_BY_INVESTMENT_TYPE: Record<
     "disposal_proceeds",
   ],
 };
+
+// Reference event types valid per investment type, per use-cases.md UC-04's examples
+// (Equity: market valuation note, stock split, corporate action. Rental Property:
+// property valuation note, tenant change, lease renewal, interest rate change).
+// legal_update/other apply to either.
+export const REFERENCE_EVENT_TYPES_BY_INVESTMENT_TYPE: Record<
+  InvestmentType,
+  readonly ReferenceEventType[]
+> = {
+  equity: ["market_valuation_note", "stock_split", "corporate_action", "legal_update", "other"],
+  rental_property: [
+    "property_valuation_note",
+    "tenant_change",
+    "lease_renewal",
+    "interest_rate_change",
+    "legal_update",
+    "other",
+  ],
+};

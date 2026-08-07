@@ -1,4 +1,4 @@
-import type { TransactionType, ValuationSource } from "@pwpm/shared";
+import type { ReferenceEventType, TransactionType, ValuationSource } from "@pwpm/shared";
 
 export const TRANSACTION_TYPE_LABEL: Record<TransactionType, string> = {
   capital_contribution: "Vốn góp",
@@ -19,4 +19,16 @@ export const VALUATION_SOURCE_LABEL: Record<ValuationSource, string> = {
   appraisal: "Thẩm định giá",
   broker_quote: "Báo giá môi giới",
   manual_estimate: "Ước tính thủ công",
+};
+
+export const REFERENCE_EVENT_TYPE_LABEL: Record<ReferenceEventType, string> = {
+  property_valuation_note: "Ghi chú định giá BĐS",
+  tenant_change: "Đổi người thuê",
+  lease_renewal: "Gia hạn hợp đồng thuê",
+  interest_rate_change: "Thay đổi lãi suất",
+  market_valuation_note: "Ghi chú định giá thị trường",
+  stock_split: "Chia tách cổ phiếu",
+  corporate_action: "Sự kiện doanh nghiệp",
+  legal_update: "Cập nhật pháp lý",
+  other: "Khác",
 };
