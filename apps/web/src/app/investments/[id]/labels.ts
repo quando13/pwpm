@@ -1,0 +1,22 @@
+import type { TransactionType, ValuationSource } from "@pwpm/shared";
+
+export const TRANSACTION_TYPE_LABEL: Record<TransactionType, string> = {
+  capital_contribution: "Vốn góp",
+  rental_income: "Thu nhập cho thuê",
+  loan_principal_payment: "Trả nợ gốc",
+  loan_interest_payment: "Trả lãi vay",
+  maintenance_expense: "Chi phí bảo trì",
+  renovation_expense: "Chi phí cải tạo",
+  disposal_proceeds: "Tiền thu từ thanh lý",
+  buy_shares: "Mua cổ phiếu",
+  sell_shares: "Bán cổ phiếu",
+  dividend_received: "Cổ tức nhận được",
+  brokerage_fee: "Phí môi giới",
+};
+
+export const VALUATION_SOURCE_LABEL: Record<ValuationSource, string> = {
+  market_reference: "Tham chiếu thị trường",
+  appraisal: "Thẩm định giá",
+  broker_quote: "Báo giá môi giới",
+  manual_estimate: "Ước tính thủ công",
+};

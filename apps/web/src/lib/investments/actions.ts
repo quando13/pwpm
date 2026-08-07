@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { recomputeInvestmentSnapshot } from "@/lib/investments/recompute";
 import { createClient } from "@/lib/supabase/server";
 
 // Rental Property's full calculation engine (Financing, outstanding balance, etc.) is
@@ -127,6 +128,7 @@ export async function createInvestment(
     return { error: txError.message };
   }
 
+  await recomputeInvestmentSnapshot(investment.id);
   redirect("/investments");
 }
 
@@ -214,6 +216,7 @@ export async function updateInvestment(
         .update({ amount: parsed.data.purchase_value, transaction_date: base.data.acquisition_date })
         .eq("id", txId);
     }
+    await recomputeInvestmentSnapshot(investment.id);
   }
 
   redirect("/investments");

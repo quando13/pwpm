@@ -133,7 +133,9 @@ export default async function InvestmentsPage({
                             <HouseIcon className="h-3.5 w-3.5" />
                           )}
                         </span>
-                        <span className="font-semibold">{inv.name}</span>
+                        <Link href={`/investments/${inv.id}`} className="font-semibold hover:text-gold-bright">
+                          {inv.name}
+                        </Link>
                       </div>
                     </td>
                     <td className="border-b border-input py-[9px] pr-2.5 align-middle last:border-b-0">
