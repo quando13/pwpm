@@ -30,6 +30,9 @@ coverage/
 npm-debug.log*
 pnpm-debug.log*
 
+# Design reference material (chat attachments, third-party inspiration images)
+docs/design/
+
 # Editor / OS
 .DS_Store
 Thumbs.db

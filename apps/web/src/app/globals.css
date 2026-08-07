@@ -3,27 +3,15 @@
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Token values (--background, --foreground, --gold, etc.) live in @pwpm/ui/globals.css
+   — this file only wires them into Tailwind's font utilities and the page base style. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
+  background: var(--page-glow), var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), -apple-system, "Segoe UI", sans-serif;
 }
