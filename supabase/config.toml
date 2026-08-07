@@ -160,8 +160,11 @@ site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# TODO: add the production apps/web URL here once deployed (e.g. Vercel).
-additional_redirect_urls = ["http://localhost:3000/**"]
+additional_redirect_urls = [
+  "http://localhost:3000/**",
+  "https://pwpm-web.vercel.app/**",
+  "https://pwpm-web-*-aura-x1.vercel.app/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
