@@ -2,7 +2,7 @@ import { latestValuation } from "@pwpm/domain";
 import { formatDate, formatRatioAsPercent, formatVND } from "@pwpm/utils";
 import type { Financing, Investment, PerformanceSnapshot, Transaction, Valuation } from "@pwpm/shared";
 
-import { MonthlyCashFlowChart } from "./monthly-cashflow-chart";
+import { CumulativeCashFlowChart } from "./cumulative-cashflow-chart";
 import { TrendChart } from "./trend-chart";
 
 function sumByType(transactions: Transaction[], type: Transaction["transaction_type"]): number {
@@ -10,9 +10,8 @@ function sumByType(transactions: Transaction[], type: Transaction["transaction_t
 }
 
 // Cash-flow-relevant transaction types, signed the same way as computeRentalPropertySnapshot's
-// Cash Flow formula (rental_income in, everything else out) — bucketed by month instead of
-// summed cumulatively, for the "Dòng tiền theo tháng" chart.
-const MONTHLY_CASH_FLOW_TYPES: Record<string, 1 | -1> = {
+// Cash Flow formula (rental_income in, everything else out).
+const CASH_FLOW_TYPE_SIGN: Record<string, 1 | -1> = {
   rental_income: 1,
   maintenance_expense: -1,
   loan_interest_payment: -1,
@@ -20,34 +19,44 @@ const MONTHLY_CASH_FLOW_TYPES: Record<string, 1 | -1> = {
   loan_principal_payment: -1,
 };
 
-function buildMonthlyCashFlow(transactions: Transaction[]): { label: string; value: number }[] {
-  const relevant = transactions.filter((tx) => tx.transaction_type in MONTHLY_CASH_FLOW_TYPES);
+function quarterOf(dateStr: string): { year: number; quarter: number } {
+  const [year, month] = dateStr.split("-").map(Number);
+  return { year, quarter: Math.ceil(month / 3) };
+}
+
+// Running cumulative cash flow bucketed by quarter (not month) — keeps the point count low
+// enough to render in full without horizontal scrolling even for a multi-year holding.
+function buildQuarterlyCumulativeCashFlow(transactions: Transaction[]): { label: string; value: number }[] {
+  const relevant = transactions.filter((tx) => tx.transaction_type in CASH_FLOW_TYPE_SIGN);
   if (relevant.length === 0) return [];
 
-  const monthKey = (dateStr: string) => dateStr.slice(0, 7);
-  const sums = new Map<string, number>();
+  const deltaByQuarter = new Map<string, number>();
   for (const tx of relevant) {
-    const key = monthKey(tx.transaction_date);
-    const sign = MONTHLY_CASH_FLOW_TYPES[tx.transaction_type];
-    sums.set(key, (sums.get(key) ?? 0) + sign * tx.amount);
+    const { year, quarter } = quarterOf(tx.transaction_date);
+    const key = `${year}-Q${quarter}`;
+    const sign = CASH_FLOW_TYPE_SIGN[tx.transaction_type];
+    deltaByQuarter.set(key, (deltaByQuarter.get(key) ?? 0) + sign * tx.amount);
   }
 
-  const earliestKey = relevant.map((tx) => monthKey(tx.transaction_date)).sort()[0];
-  const nowKey = new Date().toISOString().slice(0, 7);
+  const quarterKeys = relevant.map((tx) => quarterOf(tx.transaction_date));
+  let { year, quarter } = quarterKeys.reduce((earliest, q) =>
+    q.year < earliest.year || (q.year === earliest.year && q.quarter < earliest.quarter) ? q : earliest,
+  );
+  const now = new Date();
+  const currentQuarter = { year: now.getFullYear(), quarter: Math.ceil((now.getMonth() + 1) / 3) };
 
-  const months: { label: string; value: number }[] = [];
-  let [y, m] = earliestKey.split("-").map(Number);
-  const [endY, endM] = nowKey.split("-").map(Number);
-  while (y < endY || (y === endY && m <= endM)) {
-    const key = `${y}-${String(m).padStart(2, "0")}`;
-    months.push({ label: `T${m}/${String(y).slice(2)}`, value: sums.get(key) ?? 0 });
-    m += 1;
-    if (m > 12) {
-      m = 1;
-      y += 1;
+  const points: { label: string; value: number }[] = [];
+  let cumulative = 0;
+  while (year < currentQuarter.year || (year === currentQuarter.year && quarter <= currentQuarter.quarter)) {
+    cumulative += deltaByQuarter.get(`${year}-Q${quarter}`) ?? 0;
+    points.push({ label: `Q${quarter}/${String(year).slice(2)}`, value: cumulative });
+    quarter += 1;
+    if (quarter > 4) {
+      quarter = 1;
+      year += 1;
     }
   }
-  return months;
+  return points;
 }
 
 export function OverviewTab({
@@ -99,8 +108,8 @@ export function OverviewTab({
             financings={financings}
           />
           <div className="rounded-[14px] border border-input bg-surface p-4">
-            <div className="mb-1 text-[13px] font-bold">Dòng tiền theo tháng</div>
-            <MonthlyCashFlowChart months={buildMonthlyCashFlow(transactions)} />
+            <div className="mb-1 text-[13px] font-bold">Báo cáo dòng tiền lũy kế theo quý</div>
+            <CumulativeCashFlowChart points={buildQuarterlyCumulativeCashFlow(transactions)} />
           </div>
         </>
       )}
@@ -164,8 +173,6 @@ function RentalPropertyStats({
 
   const principalPaid = sumByType(transactions, "loan_principal_payment");
   const interestPaid = sumByType(transactions, "loan_interest_payment");
-  const maintenanceExpense = sumByType(transactions, "maintenance_expense");
-  const renovationExpense = sumByType(transactions, "renovation_expense");
 
   const valuation = latestValuation(valuations);
   const debtToAssetRatio = snapshot.current_value > 0 ? snapshot.outstanding_financing / snapshot.current_value : null;
@@ -192,16 +199,6 @@ function RentalPropertyStats({
         <Stat label="Gốc đã trả đến hiện tại" value={formatVND(principalPaid)} />
         <Stat label="Lãi đã trả đến hiện tại" value={formatVND(interestPaid)} />
         <Stat label="Tổng chi phí vay" value={formatVND(principalPaid + interestPaid)} />
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Tổng thu nhập cho thuê" value={formatVND(snapshot.total_income)} />
-        <Stat label="Tổng chi phí (bảo trì, ...)" value={formatVND(maintenanceExpense + renovationExpense)} />
-        <Stat
-          label="Dòng tiền lũy kế đến hiện tại"
-          value={formatVND(snapshot.cash_flow)}
-          tone={snapshot.cash_flow >= 0 ? "up" : "down"}
-        />
       </div>
 
       {snapshot.realized_gain != null && (
