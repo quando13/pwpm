@@ -1,9 +1,9 @@
 import { computeOutstandingFinancing } from "@pwpm/domain";
-import { formatDate, formatVND } from "@pwpm/utils";
+import { formatVND } from "@pwpm/utils";
 import type { Financing, Transaction } from "@pwpm/shared";
 
 import { FinancingForm } from "./financing-form";
-import { FINANCING_SOURCE_LABEL } from "./labels";
+import { FinancingRow } from "./financing-row";
 
 export function FinancingTab({
   investmentId,
@@ -37,30 +37,12 @@ export function FinancingTab({
                   <Th align="right">Thời hạn</Th>
                   <Th>Bên cho vay</Th>
                   <Th>Ngày giải ngân</Th>
+                  <Th></Th>
                 </tr>
               </thead>
               <tbody>
                 {financings.map((f) => (
-                  <tr key={f.id}>
-                    <td className="border-b border-input py-[7px] pr-2.5 align-middle font-medium last:border-b-0">
-                      {FINANCING_SOURCE_LABEL[f.source_type]}
-                    </td>
-                    <td className="border-b border-input py-[7px] pr-2.5 text-right align-middle tabular-nums last:border-b-0">
-                      {formatVND(f.principal_amount)}
-                    </td>
-                    <td className="border-b border-input py-[7px] pr-2.5 text-right align-middle tabular-nums last:border-b-0">
-                      {f.interest_rate != null ? `${f.interest_rate}%/năm` : "—"}
-                    </td>
-                    <td className="border-b border-input py-[7px] pr-2.5 text-right align-middle tabular-nums last:border-b-0">
-                      {f.loan_term_months != null ? `${f.loan_term_months} tháng` : "—"}
-                    </td>
-                    <td className="border-b border-input py-[7px] pr-2.5 align-middle last:border-b-0">
-                      {f.lender_name ?? "—"}
-                    </td>
-                    <td className="border-b border-input py-[7px] pr-2.5 align-middle tabular-nums text-muted-foreground last:border-b-0">
-                      {formatDate(f.start_date)}
-                    </td>
-                  </tr>
+                  <FinancingRow key={f.id} investmentId={investmentId} financing={f} />
                 ))}
               </tbody>
             </table>
@@ -73,7 +55,7 @@ export function FinancingTab({
   );
 }
 
-function Th({ children, align }: { children: React.ReactNode; align?: "right" }) {
+function Th({ children, align }: { children?: React.ReactNode; align?: "right" }) {
   return (
     <th
       className={`border-b border-input pb-2 pr-2.5 text-[10.5px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${
