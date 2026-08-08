@@ -7,7 +7,7 @@ export type InvestmentType = (typeof INVESTMENT_TYPES)[number];
 export const INVESTMENT_STATUSES = ["active", "disposed", "archived"] as const;
 export type InvestmentStatus = (typeof INVESTMENT_STATUSES)[number];
 
-export const FINANCING_SOURCES = ["personal_capital", "bank_loan"] as const;
+export const FINANCING_SOURCES = ["personal_capital", "bank_loan", "private_loan"] as const;
 export type FinancingSource = (typeof FINANCING_SOURCES)[number];
 
 export const TRANSACTION_TYPES = [

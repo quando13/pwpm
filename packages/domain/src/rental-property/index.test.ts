@@ -81,6 +81,30 @@ describe("computeOutstandingFinancing", () => {
     ];
     expect(computeOutstandingFinancing(financings, transactions)).toBe(700_000_000);
   });
+
+  it("sums progressive/staged disbursements — multiple financing rows added over time, each a separate tranche", () => {
+    // Off-the-plan apartment: bank disburses in 3 tranches as construction progresses,
+    // plus a separate interest-free loan from family recorded for tracking. Each tranche
+    // is its own financings row, added whenever that disbursement actually happened —
+    // there's no single "the" financing row for this investment.
+    const financings = [
+      financing({ principal_amount: 300_000_000, source_type: "bank_loan", start_date: "2025-01-01" }),
+      financing({ principal_amount: 300_000_000, source_type: "bank_loan", start_date: "2025-06-01" }),
+      financing({ principal_amount: 200_000_000, source_type: "bank_loan", start_date: "2025-11-01" }),
+      financing({
+        principal_amount: 100_000_000,
+        source_type: "private_loan",
+        interest_rate: null,
+        lender_name: "Anh trai",
+        start_date: "2025-03-01",
+      }),
+    ];
+    const transactions = [
+      tx({ transaction_type: "loan_principal_payment", transaction_date: "2025-12-01", amount: 40_000_000 }),
+    ];
+    // 300 + 300 + 200 + 100 - 40 = 860M
+    expect(computeOutstandingFinancing(financings, transactions)).toBe(860_000_000);
+  });
 });
 
 describe("computeRentalPropertySnapshot", () => {

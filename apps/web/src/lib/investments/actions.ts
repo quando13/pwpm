@@ -135,13 +135,16 @@ export async function createInvestment(
 
   if (base.data.investment_type === "rental_property") {
     const sourceType = formData.get("financing_source_type");
-    const isBankLoan = sourceType === "bank_loan";
+    // Anything other than personal_capital represents real debt (bank or a private
+    // lender) — both need the same loan detail fields, only the label differs.
+    const requiresLoanDetails = sourceType !== "personal_capital";
     const financingParsed = financingSchema.safeParse({
       source_type: sourceType,
-      principal_amount: isBankLoan ? formData.get("principal_amount") : 0,
-      interest_rate: isBankLoan ? formData.get("interest_rate") : 0,
-      loan_term_months: isBankLoan && formData.get("loan_term_months") ? formData.get("loan_term_months") : null,
-      lender_name: isBankLoan && formData.get("lender_name") ? formData.get("lender_name") : null,
+      principal_amount: requiresLoanDetails ? formData.get("principal_amount") : 0,
+      interest_rate: requiresLoanDetails ? formData.get("interest_rate") : 0,
+      loan_term_months:
+        requiresLoanDetails && formData.get("loan_term_months") ? formData.get("loan_term_months") : null,
+      lender_name: requiresLoanDetails && formData.get("lender_name") ? formData.get("lender_name") : null,
     });
     if (!financingParsed.success) {
       await supabase.from("investments").delete().eq("id", investment.id);
@@ -152,7 +155,7 @@ export async function createInvestment(
       investment_id: investment.id,
       source_type: financingParsed.data.source_type,
       principal_amount: financingParsed.data.principal_amount,
-      interest_rate: isBankLoan ? financingParsed.data.interest_rate : null,
+      interest_rate: requiresLoanDetails ? financingParsed.data.interest_rate : null,
       loan_term_months: financingParsed.data.loan_term_months,
       start_date: base.data.acquisition_date,
       lender_name: financingParsed.data.lender_name,

@@ -124,11 +124,16 @@ export function NewInvestmentForm({ initial }: { initial?: InitialInvestmentValu
                 active={financingSource === "bank_loan"}
                 onClick={() => setFinancingSource("bank_loan")}
               />
+              <TypeButton
+                label="Vay cá nhân"
+                active={financingSource === "private_loan"}
+                onClick={() => setFinancingSource("private_loan")}
+              />
             </div>
           </div>
           <input type="hidden" name="financing_source_type" value={financingSource} />
 
-          {financingSource === "bank_loan" && (
+          {financingSource !== "personal_capital" && (
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5">
@@ -153,7 +158,7 @@ export function NewInvestmentForm({ initial }: { initial?: InitialInvestmentValu
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="lender_name" className="text-sm font-medium">
-                    Ngân hàng
+                    {financingSource === "bank_loan" ? "Ngân hàng" : "Người cho vay"}
                   </label>
                   <Input id="lender_name" name="lender_name" />
                 </div>

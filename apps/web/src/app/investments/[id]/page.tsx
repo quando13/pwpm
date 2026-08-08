@@ -149,7 +149,7 @@ export default async function InvestmentDetailPage({
         {activeTab === "overview" && <OverviewTab investment={investment} snapshots={snapshots} />}
 
         {activeTab === "financing" && investment.investment_type === "rental_property" && (
-          <FinancingTab financings={financings} transactions={transactions} />
+          <FinancingTab investmentId={investment.id} financings={financings} transactions={transactions} />
         )}
 
         {activeTab === "transactions" && (
