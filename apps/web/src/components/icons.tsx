@@ -74,6 +74,16 @@ export function LogoutIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function LoginIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M15 21h4a2 2 0 002-2V5a2 2 0 00-2-2h-4" />
+      <path d="M8 7l-5 5 5 5" />
+      <path d="M3 12h13" />
+    </Icon>
+  );
+}
+
 export function CalendarIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

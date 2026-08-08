@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { signOut } from "@/lib/auth/actions";
 
-import { BarsIcon, GearIcon, GridIcon, LayersIcon, LogoMarkIcon, LogoutIcon, SwapIcon } from "./icons";
+import { BarsIcon, GearIcon, GridIcon, LayersIcon, LoginIcon, LogoMarkIcon, LogoutIcon, SwapIcon } from "./icons";
 
 export type ActiveNav = "dashboard" | "investments" | "transactions" | "reports";
 
@@ -13,7 +13,7 @@ const NAV_ITEMS: { key: ActiveNav; label: string; href: string; icon: typeof Gri
   { key: "reports", label: "Báo cáo", href: "#", icon: BarsIcon },
 ];
 
-export function Sidebar({ active }: { active: ActiveNav }) {
+export function Sidebar({ active, authenticated = true }: { active: ActiveNav; authenticated?: boolean }) {
   return (
     <aside className="flex min-h-0 flex-col gap-1 border-r border-input px-3.5 py-5">
       <div className="flex items-center gap-2.5 px-2 pb-5 pt-0.5">
@@ -53,15 +53,25 @@ export function Sidebar({ active }: { active: ActiveNav }) {
           <GearIcon className="h-[17px] w-[17px] flex-none" />
           Cài đặt
         </a>
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-[13.5px] font-medium text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+        {authenticated ? (
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-[13.5px] font-medium text-muted-foreground hover:bg-surface-2 hover:text-foreground"
+            >
+              <LogoutIcon className="h-[17px] w-[17px] flex-none" />
+              Đăng xuất
+            </button>
+          </form>
+        ) : (
+          <Link
+            href="/login"
+            className="flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-[13.5px] font-medium text-muted-foreground hover:bg-surface-2 hover:text-foreground"
           >
-            <LogoutIcon className="h-[17px] w-[17px] flex-none" />
-            Đăng xuất
-          </button>
-        </form>
+            <LoginIcon className="h-[17px] w-[17px] flex-none" />
+            Đăng nhập
+          </Link>
+        )}
       </div>
     </aside>
   );

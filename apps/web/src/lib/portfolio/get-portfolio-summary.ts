@@ -1,16 +1,29 @@
 import { computePortfolioSummary, type PortfolioPosition, type PortfolioSummary } from "@pwpm/domain";
-import type { Investment, PerformanceSnapshot } from "@pwpm/shared";
+import type { Investment, InvestmentType, PerformanceSnapshot } from "@pwpm/shared";
 
 import type { createClient } from "@/lib/supabase/server";
+
+export interface InvestmentPerformance {
+  investmentId: string;
+  name: string;
+  investmentType: InvestmentType;
+  currentValue: number;
+  investmentReturn: number;
+}
+
+export interface PortfolioData {
+  summary: PortfolioSummary;
+  investments: InvestmentPerformance[];
+}
 
 // Read-path aggregation — computed on every read from investments + each investment's
 // latest performance_snapshots row, never stored, per data-model.md's "Portfolio-level
 // aggregates" note. Takes an already-created (RLS-scoped) client, matching every other
 // data-fetching call in this app, rather than creating its own.
-export async function getPortfolioSummary(
+export async function getPortfolioData(
   supabase: Awaited<ReturnType<typeof createClient>>,
   portfolioId: string,
-): Promise<PortfolioSummary> {
+): Promise<PortfolioData> {
   // Only 'active' investments count toward a live portfolio — a disposed investment's
   // last snapshot reflects an asset the customer no longer owns (proceeds from the sale
   // aren't tracked as a position of any kind in MVP), and archived ones are hidden by
@@ -23,7 +36,7 @@ export async function getPortfolioSummary(
     .eq("status", "active");
   const investments = (investmentsData ?? []) as Investment[];
   if (investments.length === 0) {
-    return computePortfolioSummary([]);
+    return { summary: computePortfolioSummary([]), investments: [] };
   }
 
   const investmentIds = investments.map((inv) => inv.id);
@@ -44,6 +57,7 @@ export async function getPortfolioSummary(
   }
 
   const positions: PortfolioPosition[] = [];
+  const performances: InvestmentPerformance[] = [];
   for (const investment of investments) {
     const snapshot = latestByInvestment.get(investment.id);
     // No snapshot yet (no valuation recorded, or Rental Property recompute never ran) —
@@ -59,7 +73,16 @@ export async function getPortfolioSummary(
       cashFlowTtm: snapshot.cash_flow_ttm,
       investmentReturn: snapshot.investment_return,
     });
+    performances.push({
+      investmentId: investment.id,
+      name: investment.name,
+      investmentType: investment.investment_type,
+      currentValue: snapshot.current_value,
+      investmentReturn: snapshot.investment_return,
+    });
   }
 
-  return computePortfolioSummary(positions);
+  performances.sort((a, b) => b.investmentReturn - a.investmentReturn);
+
+  return { summary: computePortfolioSummary(positions), investments: performances };
 }
