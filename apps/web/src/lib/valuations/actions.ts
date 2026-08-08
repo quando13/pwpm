@@ -66,6 +66,67 @@ export async function createValuation(
   redirect(`/investments/${investment.id}?tab=valuations`);
 }
 
+export type UpdateValuationInput = {
+  valuation_date: string;
+  estimated_value: number;
+  valuation_source: string;
+  notes: string | null;
+};
+
+// Same "customer owns the data" principle as Financing/Transactions — structural
+// validation only, no attempt to judge whether a corrected valuation is "plausible".
+export async function updateValuation(
+  valuationId: string,
+  investmentId: string,
+  input: UpdateValuationInput,
+): Promise<{ error?: string }> {
+  const parsed = valuationSchema.safeParse({
+    investment_id: investmentId,
+    valuation_date: input.valuation_date,
+    estimated_value: input.estimated_value,
+    valuation_source: input.valuation_source,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: investment } = await supabase
+    .from("investments")
+    .select("id")
+    .eq("id", investmentId)
+    .eq("customer_id", user.id)
+    .single();
+  if (!investment) {
+    return { error: "Không tìm thấy khoản đầu tư." };
+  }
+
+  const { error: updateError } = await supabase
+    .from("valuations")
+    .update({
+      valuation_date: parsed.data.valuation_date,
+      estimated_value: parsed.data.estimated_value,
+      valuation_source: parsed.data.valuation_source,
+      notes: input.notes || null,
+    })
+    .eq("id", valuationId)
+    .eq("investment_id", investmentId);
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  await recomputeInvestmentSnapshot(investment.id);
+  revalidatePath(`/investments/${investment.id}`);
+  return {};
+}
+
 // Same effect as createValuation, but for the Investment List's inline "Định giá mới
 // nhất" editor (Retro 2, 2026-08-07) — stays on /investments (revalidate, no redirect)
 // and takes plain args since it's called directly from a Client Component, not a form.

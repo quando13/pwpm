@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { formatDate, formatVND } from "@pwpm/utils";
+import { formatDate } from "@pwpm/utils";
 import { REFERENCE_EVENT_TYPES_BY_INVESTMENT_TYPE, TRANSACTION_TYPES_BY_INVESTMENT_TYPE } from "@pwpm/shared";
 import type { Financing, Investment, PerformanceSnapshot, ReferenceEvent, Transaction, Valuation } from "@pwpm/shared";
 
@@ -10,11 +10,13 @@ import { INVESTMENT_STATUS_DOT, INVESTMENT_STATUS_LABEL, INVESTMENT_TYPE_LABEL }
 import { createClient } from "@/lib/supabase/server";
 
 import { FinancingTab } from "./financing-tab";
-import { REFERENCE_EVENT_TYPE_LABEL, TRANSACTION_TYPE_LABEL, VALUATION_SOURCE_LABEL } from "./labels";
 import { OverviewTab } from "./overview-tab";
+import { ReferenceEventCard } from "./reference-event-card";
 import { ReferenceEventForm } from "./reference-event-form";
 import { TransactionForm } from "./transaction-form";
+import { TransactionRow } from "./transaction-row";
 import { ValuationForm } from "./valuation-form";
+import { ValuationRow } from "./valuation-row";
 
 const TABS = ["overview", "transactions", "financing", "valuations", "events"] as const;
 type Tab = (typeof TABS)[number];
@@ -167,30 +169,17 @@ export default async function InvestmentDetailPage({
                       <Th align="right">Giá/đơn vị</Th>
                       <Th align="right">Phí</Th>
                       <Th align="right">Số tiền</Th>
+                      <Th></Th>
                     </tr>
                   </thead>
                   <tbody>
                     {transactions.map((tx) => (
-                      <tr key={tx.id}>
-                        <td className="border-b border-input py-[7px] pr-2.5 align-middle tabular-nums text-muted-foreground last:border-b-0">
-                          {formatDate(tx.transaction_date)}
-                        </td>
-                        <td className="border-b border-input py-[7px] pr-2.5 align-middle font-medium last:border-b-0">
-                          {TRANSACTION_TYPE_LABEL[tx.transaction_type]}
-                        </td>
-                        <td className="border-b border-input py-[7px] pr-2.5 text-right align-middle tabular-nums last:border-b-0">
-                          {tx.quantity ?? "—"}
-                        </td>
-                        <td className="border-b border-input py-[7px] pr-2.5 text-right align-middle tabular-nums last:border-b-0">
-                          {tx.price_per_unit ? formatVND(tx.price_per_unit) : "—"}
-                        </td>
-                        <td className="border-b border-input py-[7px] pr-2.5 text-right align-middle tabular-nums last:border-b-0">
-                          {tx.fee ? formatVND(tx.fee) : "—"}
-                        </td>
-                        <td className="border-b border-input py-[7px] pr-2.5 text-right align-middle font-semibold tabular-nums last:border-b-0">
-                          {formatVND(tx.amount)}
-                        </td>
-                      </tr>
+                      <TransactionRow
+                        key={tx.id}
+                        investmentId={investment.id}
+                        transaction={tx}
+                        allowedTypes={allowedTransactionTypes}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -212,21 +201,12 @@ export default async function InvestmentDetailPage({
                       <Th>Ngày</Th>
                       <Th align="right">Giá trị ước tính</Th>
                       <Th>Nguồn</Th>
+                      <Th></Th>
                     </tr>
                   </thead>
                   <tbody>
                     {valuations.map((val) => (
-                      <tr key={val.id}>
-                        <td className="border-b border-input py-[7px] pr-2.5 align-middle tabular-nums text-muted-foreground last:border-b-0">
-                          {formatDate(val.valuation_date)}
-                        </td>
-                        <td className="border-b border-input py-[7px] pr-2.5 text-right align-middle font-semibold tabular-nums last:border-b-0">
-                          {formatVND(val.estimated_value)}
-                        </td>
-                        <td className="border-b border-input py-[7px] pr-2.5 align-middle last:border-b-0">
-                          {VALUATION_SOURCE_LABEL[val.valuation_source]}
-                        </td>
-                      </tr>
+                      <ValuationRow key={val.id} investmentId={investment.id} valuation={val} />
                     ))}
                   </tbody>
                 </table>
@@ -244,17 +224,12 @@ export default async function InvestmentDetailPage({
               ) : (
                 <ul className="flex flex-col gap-3">
                   {events.map((ev) => (
-                    <li key={ev.id} className="border-b border-input pb-3 last:border-b-0 last:pb-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center rounded-full bg-gold-soft px-2 py-[3px] text-[10.5px] font-semibold text-gold-bright">
-                          {REFERENCE_EVENT_TYPE_LABEL[ev.event_type]}
-                        </span>
-                        <span className="text-[11px] tabular-nums text-muted-foreground">
-                          {formatDate(ev.event_date)}
-                        </span>
-                      </div>
-                      <p className="mt-1.5 text-[12.5px]">{ev.description}</p>
-                    </li>
+                    <ReferenceEventCard
+                      key={ev.id}
+                      investmentId={investment.id}
+                      event={ev}
+                      allowedTypes={allowedEventTypes}
+                    />
                   ))}
                 </ul>
               )}
@@ -267,7 +242,7 @@ export default async function InvestmentDetailPage({
   );
 }
 
-function Th({ children, align }: { children: React.ReactNode; align?: "right" }) {
+function Th({ children, align }: { children?: React.ReactNode; align?: "right" }) {
   return (
     <th
       className={`border-b border-input pb-2 pr-2.5 text-[10.5px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${
