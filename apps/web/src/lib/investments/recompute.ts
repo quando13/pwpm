@@ -1,5 +1,6 @@
-import { computeEquitySnapshot } from "@pwpm/domain";
-import type { Transaction, Valuation } from "@pwpm/shared";
+import { computeEquitySnapshot, computeRentalPropertySnapshot } from "@pwpm/domain";
+import type { ComputedSnapshot } from "@pwpm/domain";
+import type { Financing, Transaction, Valuation } from "@pwpm/shared";
 
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -19,26 +20,43 @@ export async function recomputeInvestmentSnapshot(investmentId: string): Promise
 
   const { data: investment } = await supabase
     .from("investments")
-    .select("investment_type")
+    .select("investment_type, status")
     .eq("id", investmentId)
     .single();
   if (!investment) return;
 
-  // Rental Property's calculation engine (Financing, cash-on-cash return, disposal)
-  // is Sprint 2.1 work — skip rather than write an incomplete/misleading snapshot.
-  if (investment.investment_type !== "equity") return;
-
-  const [{ data: transactions }, { data: valuations }] = await Promise.all([
-    supabase.from("transactions").select("*").eq("investment_id", investmentId),
-    supabase.from("valuations").select("*").eq("investment_id", investmentId),
-  ]);
-
-  const snapshot = computeEquitySnapshot({
-    transactions: (transactions ?? []) as Transaction[],
-    valuations: (valuations ?? []) as Valuation[],
-  });
+  // Once disposed, the disposal snapshot is the final historical record — per
+  // calculation-spec.md's Disposal section, recomputation stops recurring.
+  if (investment.status === "disposed") return;
 
   const snapshotDate = new Date().toISOString().slice(0, 10);
+  let snapshot: ComputedSnapshot;
+  let sawDisposal = false;
+
+  if (investment.investment_type === "equity") {
+    const [{ data: transactions }, { data: valuations }] = await Promise.all([
+      supabase.from("transactions").select("*").eq("investment_id", investmentId),
+      supabase.from("valuations").select("*").eq("investment_id", investmentId),
+    ]);
+    snapshot = computeEquitySnapshot({
+      transactions: (transactions ?? []) as Transaction[],
+      valuations: (valuations ?? []) as Valuation[],
+    });
+  } else {
+    const [{ data: transactions }, { data: valuations }, { data: financings }] = await Promise.all([
+      supabase.from("transactions").select("*").eq("investment_id", investmentId),
+      supabase.from("valuations").select("*").eq("investment_id", investmentId),
+      supabase.from("financings").select("*").eq("investment_id", investmentId),
+    ]);
+    const typedTransactions = (transactions ?? []) as Transaction[];
+    snapshot = computeRentalPropertySnapshot({
+      transactions: typedTransactions,
+      financings: (financings ?? []) as Financing[],
+      valuations: (valuations ?? []) as Valuation[],
+      snapshotDate,
+    });
+    sawDisposal = typedTransactions.some((tx) => tx.transaction_type === "disposal_proceeds");
+  }
 
   await supabase.from("performance_snapshots").upsert(
     {
@@ -49,4 +67,10 @@ export async function recomputeInvestmentSnapshot(investmentId: string): Promise
     },
     { onConflict: "investment_id,snapshot_date" },
   );
+
+  // A disposal_proceeds transaction triggers investments.status -> 'disposed', per
+  // data-model.md — this snapshot (just written) becomes the frozen final record.
+  if (sawDisposal) {
+    await supabase.from("investments").update({ status: "disposed" }).eq("id", investmentId);
+  }
 }

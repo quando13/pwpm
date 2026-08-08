@@ -6,6 +6,7 @@ import type { Financing, Investment, PerformanceSnapshot, ReferenceEvent, Transa
 
 import { AppShell } from "@/components/app-shell";
 import { HouseIcon, TrendUpIcon } from "@/components/icons";
+import { INVESTMENT_STATUS_DOT, INVESTMENT_STATUS_LABEL, INVESTMENT_TYPE_LABEL } from "@/lib/investments/labels";
 import { createClient } from "@/lib/supabase/server";
 
 import { FinancingTab } from "./financing-tab";
@@ -14,11 +15,6 @@ import { OverviewTab } from "./overview-tab";
 import { ReferenceEventForm } from "./reference-event-form";
 import { TransactionForm } from "./transaction-form";
 import { ValuationForm } from "./valuation-form";
-
-const TYPE_LABEL: Record<Investment["investment_type"], string> = {
-  equity: "Cổ phiếu",
-  rental_property: "BĐS cho thuê",
-};
 
 const TABS = ["overview", "transactions", "financing", "valuations", "events"] as const;
 type Tab = (typeof TABS)[number];
@@ -113,9 +109,14 @@ export default async function InvestmentDetailPage({
               )}
             </span>
             <h1 className="text-[19px] font-bold tracking-tight">{investment.name}</h1>
+            <span
+              className={`inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground before:h-1.5 before:w-1.5 before:rounded-full ${INVESTMENT_STATUS_DOT[investment.status]}`}
+            >
+              {INVESTMENT_STATUS_LABEL[investment.status]}
+            </span>
           </div>
           <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-            {TYPE_LABEL[investment.investment_type]} · Mua {formatDate(investment.acquisition_date)}
+            {INVESTMENT_TYPE_LABEL[investment.investment_type]} · Mua {formatDate(investment.acquisition_date)}
           </p>
         </div>
 

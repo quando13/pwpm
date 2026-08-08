@@ -8,15 +8,11 @@ import type { Investment, Transaction, Valuation } from "@pwpm/shared";
 import { AppShell } from "@/components/app-shell";
 import { HouseIcon, LayersIcon, TrendUpIcon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
+import { INVESTMENT_STATUS_DOT, INVESTMENT_STATUS_LABEL, INVESTMENT_TYPE_LABEL } from "@/lib/investments/labels";
 import { createClient } from "@/lib/supabase/server";
 
 import { InvestmentRowActions } from "./investment-row-actions";
 import { QuickValuationEditor } from "./quick-valuation-editor";
-
-const TYPE_LABEL: Record<Investment["investment_type"], string> = {
-  equity: "Cổ phiếu",
-  rental_property: "BĐS cho thuê",
-};
 
 export default async function InvestmentsPage({
   searchParams,
@@ -181,7 +177,7 @@ export default async function InvestmentsPage({
                               : "bg-gold-soft text-gold-bright"
                           }`}
                         >
-                          {TYPE_LABEL[inv.investment_type]}
+                          {INVESTMENT_TYPE_LABEL[inv.investment_type]}
                         </span>
                       </td>
                       <td className="border-b border-input py-[9px] pr-2.5 align-middle tabular-nums text-muted-foreground last:border-b-0">
@@ -218,15 +214,13 @@ export default async function InvestmentsPage({
                       </td>
                       <td className="border-b border-input py-[9px] pr-2.5 align-middle last:border-b-0">
                         <span
-                          className={`inline-flex items-center gap-1.5 text-[11.5px] text-muted-foreground before:h-1.5 before:w-1.5 before:rounded-full ${
-                            inv.status === "active" ? "before:bg-emerald" : "before:bg-muted-foreground"
-                          }`}
+                          className={`inline-flex items-center gap-1.5 text-[11.5px] text-muted-foreground before:h-1.5 before:w-1.5 before:rounded-full ${INVESTMENT_STATUS_DOT[inv.status]}`}
                         >
-                          {inv.status === "active" ? "ACTIVE" : "INACTIVE"}
+                          {INVESTMENT_STATUS_LABEL[inv.status]}
                         </span>
                       </td>
                       <td className="border-b border-input py-[9px] pr-2.5 text-right align-middle last:border-b-0">
-                        <InvestmentRowActions investmentId={inv.id} archived={inv.status !== "active"} />
+                        <InvestmentRowActions investmentId={inv.id} status={inv.status} />
                       </td>
                     </tr>
                   );

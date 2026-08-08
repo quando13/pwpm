@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTransition } from "react";
+import type { Investment } from "@pwpm/shared";
 
 import { CopyIcon, EditIcon, RestoreIcon, TrashIcon } from "@/components/icons";
 import { archiveInvestment, restoreInvestment } from "@/lib/investments/actions";
@@ -9,7 +10,13 @@ import { archiveInvestment, restoreInvestment } from "@/lib/investments/actions"
 const iconButton =
   "grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:opacity-50";
 
-export function InvestmentRowActions({ investmentId, archived }: { investmentId: string; archived: boolean }) {
+export function InvestmentRowActions({
+  investmentId,
+  status,
+}: {
+  investmentId: string;
+  status: Investment["status"];
+}) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -25,7 +32,7 @@ export function InvestmentRowActions({ investmentId, archived }: { investmentId:
       >
         <CopyIcon className="h-4 w-4" />
       </Link>
-      {archived ? (
+      {status === "archived" && (
         <button
           type="button"
           disabled={pending}
@@ -36,7 +43,8 @@ export function InvestmentRowActions({ investmentId, archived }: { investmentId:
         >
           <RestoreIcon className="h-4 w-4" />
         </button>
-      ) : (
+      )}
+      {status === "active" && (
         <button
           type="button"
           disabled={pending}
@@ -52,6 +60,7 @@ export function InvestmentRowActions({ investmentId, archived }: { investmentId:
           <TrashIcon className="h-4 w-4" />
         </button>
       )}
+      {/* Disposed investments are a frozen historical record — no archive/restore toggle. */}
     </div>
   );
 }
