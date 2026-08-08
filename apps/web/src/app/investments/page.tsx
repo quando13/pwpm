@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@pwpm/ui";
 import { computeEquityHoldingState, computeRentalPropertyInvestedCapital, latestValuation } from "@pwpm/domain";
 import { formatDate, formatRatioAsPercent, formatVND } from "@pwpm/utils";
-import type { Investment, Transaction, Valuation } from "@pwpm/shared";
+import type { Financing, Investment, Transaction, Valuation } from "@pwpm/shared";
 
 import { AppShell } from "@/components/app-shell";
 import { HouseIcon, LayersIcon, TrendUpIcon } from "@/components/icons";
@@ -42,17 +42,20 @@ export default async function InvestmentsPage({
 
   // buy_shares + sell_shares (not just buys) so held quantity nets out any sells, for
   // the "Định giá mới nhất" total-value calc below; capital_contribution for rental's
-  // Giá mua, same as before.
+  // own-cash portion of Giá mua. Financing's principal covers the borrowed portion —
+  // without it, Giá mua understates the real purchase price for any leveraged property.
   const purchaseTxsByInvestment = new Map<string, Transaction[]>();
   const valuationsByInvestment = new Map<string, Valuation[]>();
+  const financingsByInvestment = new Map<string, Financing[]>();
   if (investmentIds.length > 0) {
-    const [{ data: purchaseTxs }, { data: valuationsData }] = await Promise.all([
+    const [{ data: purchaseTxs }, { data: valuationsData }, { data: financingsData }] = await Promise.all([
       supabase
         .from("transactions")
         .select("*")
         .in("investment_id", investmentIds)
         .in("transaction_type", ["buy_shares", "sell_shares", "capital_contribution"]),
       supabase.from("valuations").select("*").in("investment_id", investmentIds),
+      supabase.from("financings").select("*").in("investment_id", investmentIds),
     ]);
     for (const tx of (purchaseTxs ?? []) as Transaction[]) {
       const list = purchaseTxsByInvestment.get(tx.investment_id) ?? [];
@@ -64,13 +67,23 @@ export default async function InvestmentsPage({
       list.push(val);
       valuationsByInvestment.set(val.investment_id, list);
     }
+    for (const f of (financingsData ?? []) as Financing[]) {
+      const list = financingsByInvestment.get(f.investment_id) ?? [];
+      list.push(f);
+      financingsByInvestment.set(f.investment_id, list);
+    }
   }
 
   function purchaseValueOf(investment: Investment): number {
     const txs = purchaseTxsByInvestment.get(investment.id) ?? [];
-    return investment.investment_type === "equity"
-      ? computeEquityHoldingState(txs).totalBuyCost
-      : computeRentalPropertyInvestedCapital(txs);
+    if (investment.investment_type === "equity") {
+      return computeEquityHoldingState(txs).totalBuyCost;
+    }
+    const financingPrincipal = (financingsByInvestment.get(investment.id) ?? []).reduce(
+      (sum, f) => sum + f.principal_amount,
+      0,
+    );
+    return computeRentalPropertyInvestedCapital(txs) + financingPrincipal;
   }
 
   // Latest valuation as a TOTAL, comparable to Giá mua — for Equity that's held
@@ -135,7 +148,9 @@ export default async function InvestmentsPage({
                   <Th>Ngày mua</Th>
                   <Th align="right">Giá mua</Th>
                   <Th align="right">Định giá mới nhất</Th>
-                  <Th align="right">Lãi/lỗ</Th>
+                  <Th align="right" title="Chưa bán — số liệu dự tính theo định giá gần nhất, không phải lãi/lỗ đã thực hiện.">
+                    Lãi/lỗ (dự tính)
+                  </Th>
                   <Th>Trạng thái</Th>
                   <Th align="right">Thao tác</Th>
                 </tr>
@@ -234,9 +249,18 @@ export default async function InvestmentsPage({
   );
 }
 
-function Th({ children, align }: { children: React.ReactNode; align?: "right" }) {
+function Th({
+  children,
+  align,
+  title,
+}: {
+  children: React.ReactNode;
+  align?: "right";
+  title?: string;
+}) {
   return (
     <th
+      title={title}
       className={`border-b border-input pb-2 pr-2.5 text-[10.5px] font-bold uppercase tracking-[0.04em] text-muted-foreground ${
         align === "right" ? "text-right" : "text-left"
       }`}
