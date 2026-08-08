@@ -2,17 +2,25 @@
 
 import { useActionState, useState } from "react";
 import { Button, Input } from "@pwpm/ui";
-import type { FinancingSource } from "@pwpm/shared";
+import { FINANCING_SOURCES_BY_INVESTMENT_TYPE } from "@pwpm/shared";
+import type { FinancingSource, InvestmentType } from "@pwpm/shared";
 
 import { createFinancing } from "@/lib/financing/actions";
 
 import { FINANCING_SOURCE_LABEL } from "./labels";
 
-const SOURCE_OPTIONS: FinancingSource[] = ["personal_capital", "bank_loan", "private_loan"];
-
-export function FinancingForm({ investmentId }: { investmentId: string }) {
+export function FinancingForm({
+  investmentId,
+  investmentType,
+}: {
+  investmentId: string;
+  investmentType: InvestmentType;
+}) {
+  const sourceOptions = FINANCING_SOURCES_BY_INVESTMENT_TYPE[investmentType];
   const [state, action, pending] = useActionState(createFinancing, undefined);
-  const [source, setSource] = useState<FinancingSource>("bank_loan");
+  const [source, setSource] = useState<FinancingSource>(
+    sourceOptions.includes("bank_loan") ? "bank_loan" : sourceOptions[0],
+  );
   const requiresLoanDetails = source !== "personal_capital";
 
   return (
@@ -30,7 +38,7 @@ export function FinancingForm({ investmentId }: { investmentId: string }) {
           onChange={(e) => setSource(e.target.value as FinancingSource)}
           className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
         >
-          {SOURCE_OPTIONS.map((s) => (
+          {sourceOptions.map((s) => (
             <option key={s} value={s}>
               {FINANCING_SOURCE_LABEL[s]}
             </option>
@@ -73,7 +81,7 @@ export function FinancingForm({ investmentId }: { investmentId: string }) {
             </div>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="lender_name" className="text-sm font-medium">
-                {source === "bank_loan" ? "Ngân hàng" : "Người cho vay"}
+                {source === "bank_loan" ? "Ngân hàng" : source === "margin_loan" ? "Công ty chứng khoán" : "Người cho vay"}
               </label>
               <Input id="lender_name" name="lender_name" />
             </div>

@@ -3,8 +3,9 @@
 // (confirmed 2026-08-07: Total Expense includes standalone brokerage_fee transactions;
 // capital_contribution is not a valid Equity transaction type).
 
-import type { Transaction, Valuation } from "@pwpm/shared";
+import type { Financing, Transaction, Valuation } from "@pwpm/shared";
 
+import { computeOutstandingFinancing } from "../lib/financing";
 import { latestValuation } from "../lib/valuations";
 import type { ComputedSnapshot } from "../types";
 
@@ -77,16 +78,21 @@ export function computeEquityHoldingState(transactions: Transaction[]): EquityHo
 
 export interface EquitySnapshotInput {
   transactions: Transaction[];
+  financings: Financing[];
   valuations: Valuation[];
 }
 
-export function computeEquitySnapshot({ transactions, valuations }: EquitySnapshotInput): ComputedSnapshot {
+export function computeEquitySnapshot({ transactions, financings, valuations }: EquitySnapshotInput): ComputedSnapshot {
   const holding = computeEquityHoldingState(transactions);
   const valuation = latestValuation(valuations);
 
   const currentValue = holding.heldQuantity * (valuation?.estimated_value ?? 0);
+  // Deliberately NOT reduced by margin (confirmed 2026-08-09) — buy_shares doesn't record
+  // which portion of a purchase was cash vs margin-funded, unlike Rental Property's
+  // capital_contribution/financing split, so there's no reliable way to attribute margin
+  // to specific shares. Margin only shows up as Outstanding Financing/Equity below.
   const investedCapital = holding.remainingCostBasis;
-  const outstandingFinancing = 0;
+  const outstandingFinancing = computeOutstandingFinancing(financings, transactions);
   const equity = currentValue - outstandingFinancing;
 
   const totalIncome = transactions
@@ -102,10 +108,24 @@ export function computeEquitySnapshot({ transactions, valuations }: EquitySnapsh
   const brokerageFees = transactions
     .filter((tx) => tx.transaction_type === "brokerage_fee")
     .reduce((sum, tx) => sum + tx.amount, 0);
-  const totalExpense = buyFees + sellFees + brokerageFees;
+  // Margin interest is a real recurring cost, same classification as Rental's
+  // loan_interest_payment — counts toward Total Expense.
+  const marginInterestPaid = transactions
+    .filter((tx) => tx.transaction_type === "loan_interest_payment")
+    .reduce((sum, tx) => sum + tx.amount, 0);
+  const totalExpense = buyFees + sellFees + brokerageFees + marginInterestPaid;
 
-  const cashFlow = totalIncome - totalExpense;
+  // Margin principal repayment is a balance-sheet movement (reduces Outstanding
+  // Financing, not an Expense) but still a real cash outflow, so it reduces Cash Flow —
+  // same classification as Rental's loan_principal_payment.
+  const marginPrincipalPaid = transactions
+    .filter((tx) => tx.transaction_type === "loan_principal_payment")
+    .reduce((sum, tx) => sum + tx.amount, 0);
+  const cashFlow = totalIncome - totalExpense - marginPrincipalPaid;
+
   const unrealizedGain = currentValue - holding.remainingCostBasis;
+  // Unchanged by margin — still (Unrealized + Realized + Total Income) ÷ Total Buy Cost,
+  // per the confirmed decision to leave Invested Capital/ROI untouched.
   const investmentReturn =
     holding.totalBuyCost > 0 ? (unrealizedGain + holding.realizedGain + totalIncome) / holding.totalBuyCost : 0;
 

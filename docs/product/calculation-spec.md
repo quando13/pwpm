@@ -16,6 +16,8 @@ Items marked **Assumption** encode a business rule not yet explicitly stated els
 
 **Decisions confirmed 2026-08-07**: Equity's Total Expense also includes standalone `brokerage_fee` transactions (`use-cases.md` UC-03 lists Brokerage fee as its own recordable transaction type for Equity; the original formula only summed `buy.fee`/`sell.fee` and silently ignored a standalone fee not tied to a specific buy/sell). `capital_contribution` is **not** a valid transaction type for Equity investments — it exists to record Rental Property's down payment (see that section's Classification Rule); Equity's invested capital is derived entirely from buy transactions, so `packages/shared`'s `TRANSACTION_TYPES_BY_INVESTMENT_TYPE.equity` excludes it.
 
+**Decisions confirmed 2026-08-09**: Margin loans are in scope for Equity, reusing the same `financings` table and `loan_principal_payment`/`loan_interest_payment` transaction types as Rental Property's Financing (new `margin_loan` Financing source). Explicitly decided **not** to reduce Invested Capital by margin, unlike Rental Property's capital_contribution/financing split — a `buy_shares` transaction doesn't record which portion of that specific purchase was cash vs margin-funded, so there's no reliable way to attribute margin to specific shares without a larger redesign of how buys are recorded. Margin only affects Outstanding Financing/Equity (and, via `loan_interest_payment`/`loan_principal_payment`, Total Expense/Cash Flow) — Investment Return (ROI) stays exactly as it would with no margin at all, i.e. it is **not** leveraged/amplified by margin usage. Revisit only if a future need for leveraged-return reporting justifies restructuring buy_shares to capture a cash/margin split per purchase.
+
 ---
 
 # Shared Definitions
@@ -33,6 +35,9 @@ Items marked **Assumption** encode a business rule not yet explicitly stated els
 * Buy transactions: `quantity`, `price_per_unit`, `fee`
 * Sell transactions: `quantity`, `price_per_unit`, `fee`
 * Dividend transactions: `amount`
+* Margin loan interest payment transactions: `amount`
+* Margin loan principal payment transactions: `amount`
+* Financing (margin_loan source): `principal_amount`
 * Latest Valuation: `estimated_value` (market price per unit) as of Snapshot Date
 
 ## Derived Holding State
@@ -48,15 +53,15 @@ Remaining Cost Basis  = Held Quantity × Average Cost/Unit
 
 ```
 Current Value         = Held Quantity × latest Valuation.estimated_value
-Invested Capital       = Remaining Cost Basis
-Outstanding Financing = 0   (margin loan is out of MVP scope)
+Invested Capital       = Remaining Cost Basis   (NOT reduced by margin — see 2026-08-09 decision above)
+Outstanding Financing = Financing.principal_amount (summed across every margin_loan row) − Σ(loan_principal_payment.amount)
 Equity                = Current Value − Outstanding Financing
 Total Income           = Σ(dividend.amount)  — cumulative since acquisition (no trailing-12-month variant; see Snapshot Periods)
-Total Expense           = Σ(buy.fee) + Σ(sell.fee) + Σ(brokerage_fee.amount)  — cumulative since acquisition
-Cash Flow               = Total Income − Total Expense
+Total Expense           = Σ(buy.fee) + Σ(sell.fee) + Σ(brokerage_fee.amount) + Σ(loan_interest_payment.amount)  — cumulative since acquisition
+Cash Flow               = Total Income − Total Expense − Σ(loan_principal_payment.amount)
 Realized Gain/Loss     = Σ(sell.quantity × (sell.price_per_unit − Average Cost/Unit at time of sale)) − Σ(sell.fee)
 Unrealized Gain/Loss   = Current Value − Remaining Cost Basis
-Investment Return (ROI) = (Unrealized Gain/Loss + Realized Gain/Loss + Total Income) ÷ Total Buy Cost
+Investment Return (ROI) = (Unrealized Gain/Loss + Realized Gain/Loss + Total Income) ÷ Total Buy Cost   (unaffected by margin)
 ```
 
 **Assumption**: Realized Gain/Loss uses the Average Cost/Unit at the time of each sale (recomputed progressively), not the final average cost. This requires processing transactions in date order, not just aggregating totals.

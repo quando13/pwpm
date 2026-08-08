@@ -4,6 +4,7 @@ export const FINANCING_SOURCE_LABEL: Record<FinancingSource, string> = {
   personal_capital: "Vốn tự có",
   bank_loan: "Vay ngân hàng",
   private_loan: "Vay cá nhân / người thân",
+  margin_loan: "Vay ký quỹ (Margin)",
 };
 
 export const TRANSACTION_TYPE_LABEL: Record<TransactionType, string> = {

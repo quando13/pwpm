@@ -4,17 +4,16 @@
 
 import type { Financing, Transaction, TransactionType, Valuation } from "@pwpm/shared";
 
+import { computeOutstandingFinancing } from "../lib/financing";
 import { latestValuation } from "../lib/valuations";
 import type { ComputedSnapshot } from "../types";
 
+// Re-exported here for backward compatibility — moved to lib/financing.ts since it's now
+// shared with Equity margin, not rental-specific.
+export { computeOutstandingFinancing };
+
 export function computeRentalPropertyInvestedCapital(transactions: Transaction[]): number {
   return sumByType(transactions, "capital_contribution");
-}
-
-/** Financing.principal_amount (summed across every financing row) − Σ(loan_principal_payment.amount). */
-export function computeOutstandingFinancing(financings: Financing[], transactions: Transaction[]): number {
-  const principalTotal = financings.reduce((sum, f) => sum + f.principal_amount, 0);
-  return principalTotal - sumByType(transactions, "loan_principal_payment");
 }
 
 function sumByType(transactions: Transaction[], type: TransactionType): number {

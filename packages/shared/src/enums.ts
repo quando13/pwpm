@@ -7,7 +7,7 @@ export type InvestmentType = (typeof INVESTMENT_TYPES)[number];
 export const INVESTMENT_STATUSES = ["active", "disposed", "archived"] as const;
 export type InvestmentStatus = (typeof INVESTMENT_STATUSES)[number];
 
-export const FINANCING_SOURCES = ["personal_capital", "bank_loan", "private_loan"] as const;
+export const FINANCING_SOURCES = ["personal_capital", "bank_loan", "private_loan", "margin_loan"] as const;
 export type FinancingSource = (typeof FINANCING_SOURCES)[number];
 
 export const TRANSACTION_TYPES = [
@@ -57,7 +57,11 @@ export const TRANSACTION_TYPES_BY_INVESTMENT_TYPE: Record<
 > = {
   // capital_contribution is Rental Property only — Equity's invested capital is
   // derived entirely from buy_shares, per calculation-spec.md (confirmed 2026-08-07).
-  equity: ["buy_shares", "sell_shares", "dividend_received", "brokerage_fee"],
+  // loan_principal_payment/loan_interest_payment cover margin loan repayment/interest
+  // (confirmed 2026-08-09) — Equity's Invested Capital/ROI denominator is deliberately
+  // NOT reduced by margin (unlike Rental's capital_contribution/financing split), since
+  // buy_shares doesn't record which portion of a purchase was cash vs margin-funded.
+  equity: ["buy_shares", "sell_shares", "dividend_received", "brokerage_fee", "loan_principal_payment", "loan_interest_payment"],
   rental_property: [
     "capital_contribution",
     "rental_income",
@@ -67,6 +71,15 @@ export const TRANSACTION_TYPES_BY_INVESTMENT_TYPE: Record<
     "renovation_expense",
     "disposal_proceeds",
   ],
+};
+
+// Financing sources valid per investment type — Rental Property's down-payment loans
+// (bank/private) vs Equity's margin loan from a broker. personal_capital only makes sense
+// for Rental Property, where it's an explicit "no loan" record alongside a down payment;
+// for Equity, the absence of any financings row already means fully cash-funded.
+export const FINANCING_SOURCES_BY_INVESTMENT_TYPE: Record<InvestmentType, readonly FinancingSource[]> = {
+  equity: ["margin_loan"],
+  rental_property: ["personal_capital", "bank_loan", "private_loan"],
 };
 
 // Reference event types valid per investment type, per use-cases.md UC-04's examples

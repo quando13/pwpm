@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Transaction, Valuation } from "@pwpm/shared";
+import type { Financing, Transaction, Valuation } from "@pwpm/shared";
 
 import { computeEquityHoldingState, computeEquitySnapshot } from "./index";
 
@@ -34,6 +34,30 @@ function dividend(date: string, amount: number): Transaction {
 
 function brokerageFee(date: string, amount: number): Transaction {
   return tx({ transaction_type: "brokerage_fee", transaction_date: date, amount });
+}
+
+function marginInterest(date: string, amount: number): Transaction {
+  return tx({ transaction_type: "loan_interest_payment", transaction_date: date, amount });
+}
+
+function marginPrincipal(date: string, amount: number): Transaction {
+  return tx({ transaction_type: "loan_principal_payment", transaction_date: date, amount });
+}
+
+function financing(partial: Partial<Financing> & Pick<Financing, "principal_amount">): Financing {
+  seq += 1;
+  return {
+    id: `fin-${seq}`,
+    investment_id: "inv-1",
+    source_type: "margin_loan",
+    interest_rate: null,
+    loan_term_months: null,
+    start_date: "2026-01-01",
+    lender_name: null,
+    notes: null,
+    created_at: "2026-01-01T00:00:00.000Z",
+    ...partial,
+  };
 }
 
 function valuation(date: string, estimatedValue: number): Valuation {
@@ -120,7 +144,7 @@ describe("computeEquityHoldingState", () => {
 
 describe("computeEquitySnapshot", () => {
   it("returns a fully-zeroed, non-NaN snapshot for an investment with no activity yet", () => {
-    const snapshot = computeEquitySnapshot({ transactions: [], valuations: [] });
+    const snapshot = computeEquitySnapshot({ transactions: [], financings: [], valuations: [] });
     expect(snapshot.current_value).toBe(0);
     expect(snapshot.invested_capital).toBe(0);
     expect(snapshot.investment_return).toBe(0);
@@ -133,6 +157,7 @@ describe("computeEquitySnapshot", () => {
   it("reads Current Value as 0 when no Valuation has been recorded yet (documented behavior)", () => {
     const snapshot = computeEquitySnapshot({
       transactions: [buy("2026-01-10", 100, 25_000, 50_000)],
+      financings: [],
       valuations: [],
     });
     expect(snapshot.current_value).toBe(0);
@@ -145,6 +170,7 @@ describe("computeEquitySnapshot", () => {
   it("picks the latest valuation by date, not array order", () => {
     const snapshot = computeEquitySnapshot({
       transactions: [buy("2026-01-01", 10, 20_000)],
+      financings: [],
       valuations: [valuation("2026-03-01", 30_000), valuation("2026-01-15", 21_000)],
     });
     expect(snapshot.current_value).toBe(10 * 30_000);
@@ -159,6 +185,7 @@ describe("computeEquitySnapshot", () => {
         dividend("2026-10-01", 5_000),
         brokerageFee("2026-12-01", 3_000),
       ],
+      financings: [],
       valuations: [valuation("2026-12-31", 26_000)],
     });
     expect(snapshot.total_income).toBe(10_000);
@@ -178,7 +205,7 @@ describe("computeEquitySnapshot", () => {
       sell("2026-05-01", 60, 24_000, 12_000),
       dividend("2026-06-01", 8_000),
     ];
-    const snapshot = computeEquitySnapshot({ transactions, valuations: [valuation("2026-06-30", 23_000)] });
+    const snapshot = computeEquitySnapshot({ transactions, financings: [], valuations: [valuation("2026-06-30", 23_000)] });
 
     const heldQuantity = 90;
     const averageCostPerUnit = 20_900;
@@ -199,11 +226,70 @@ describe("computeEquitySnapshot", () => {
   it("zeroes out holding fields once every share has been sold, without leaving stale cost basis", () => {
     const snapshot = computeEquitySnapshot({
       transactions: [buy("2026-01-01", 100, 20_000), sell("2026-06-01", 100, 22_000)],
+      financings: [],
       valuations: [valuation("2026-07-01", 22_000)],
     });
     expect(snapshot.invested_capital).toBe(0);
     expect(snapshot.current_value).toBe(0);
     expect(snapshot.unrealized_gain).toBe(0);
     expect(snapshot.realized_gain).toBe(200_000);
+  });
+
+  describe("margin", () => {
+    it("computes Outstanding Financing and Equity from margin financings, unaffected by principal payments to Invested Capital", () => {
+      const transactions = [
+        buy("2026-01-05", 100, 20_000, 20_000),
+        marginPrincipal("2026-03-01", 300_000),
+      ];
+      const financings = [financing({ principal_amount: 1_000_000 })];
+      const snapshot = computeEquitySnapshot({ transactions, financings, valuations: [valuation("2026-06-30", 25_000)] });
+
+      // Total Buy Cost = 100*20,000 + 20,000 = 2,020,000 — Invested Capital untouched by margin.
+      expect(snapshot.invested_capital).toBe(2_020_000);
+      expect(snapshot.outstanding_financing).toBe(1_000_000 - 300_000);
+      expect(snapshot.current_value).toBe(100 * 25_000);
+      expect(snapshot.equity).toBe(snapshot.current_value - snapshot.outstanding_financing);
+    });
+
+    it("counts margin interest toward Total Expense and margin principal repayment toward Cash Flow, not Total Expense", () => {
+      const transactions = [
+        buy("2026-01-05", 100, 20_000),
+        dividend("2026-04-01", 5_000),
+        marginInterest("2026-05-01", 8_000),
+        marginPrincipal("2026-05-01", 50_000),
+      ];
+      const financings = [financing({ principal_amount: 500_000 })];
+      const snapshot = computeEquitySnapshot({ transactions, financings, valuations: [valuation("2026-06-30", 21_000)] });
+
+      expect(snapshot.total_income).toBe(5_000);
+      expect(snapshot.total_expense).toBe(8_000); // no buy/sell fees or brokerage_fee here
+      expect(snapshot.cash_flow).toBe(5_000 - 8_000 - 50_000);
+    });
+
+    it("leaves Investment Return (ROI) exactly as it would be with no margin at all", () => {
+      const transactions = [
+        buy("2026-01-05", 100, 20_000, 20_000),
+        sell("2026-05-01", 60, 24_000, 12_000),
+        dividend("2026-06-01", 8_000),
+      ];
+      const valuations = [valuation("2026-06-30", 23_000)];
+
+      const withoutMargin = computeEquitySnapshot({ transactions, financings: [], valuations });
+      const withMargin = computeEquitySnapshot({
+        transactions: [
+          ...transactions,
+          marginInterest("2026-05-15", 15_000),
+          marginPrincipal("2026-05-15", 200_000),
+        ],
+        financings: [financing({ principal_amount: 400_000 })],
+        valuations,
+      });
+
+      expect(withMargin.investment_return).toBeCloseTo(withoutMargin.investment_return, 10);
+      expect(withMargin.invested_capital).toBe(withoutMargin.invested_capital);
+      // Margin does change Equity/Cash Flow/Total Expense, just not ROI/Invested Capital.
+      expect(withMargin.outstanding_financing).toBe(200_000);
+      expect(withMargin.equity).toBe(withoutMargin.current_value - 200_000);
+    });
   });
 });

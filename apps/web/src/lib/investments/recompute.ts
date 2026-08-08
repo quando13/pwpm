@@ -34,12 +34,14 @@ export async function recomputeInvestmentSnapshot(investmentId: string): Promise
   let sawDisposal = false;
 
   if (investment.investment_type === "equity") {
-    const [{ data: transactions }, { data: valuations }] = await Promise.all([
+    const [{ data: transactions }, { data: valuations }, { data: financings }] = await Promise.all([
       supabase.from("transactions").select("*").eq("investment_id", investmentId),
       supabase.from("valuations").select("*").eq("investment_id", investmentId),
+      supabase.from("financings").select("*").eq("investment_id", investmentId),
     ]);
     snapshot = computeEquitySnapshot({
       transactions: (transactions ?? []) as Transaction[],
+      financings: (financings ?? []) as Financing[],
       valuations: (valuations ?? []) as Valuation[],
     });
   } else {

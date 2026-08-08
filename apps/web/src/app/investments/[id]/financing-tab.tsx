@@ -1,16 +1,18 @@
 import { computeOutstandingFinancing } from "@pwpm/domain";
 import { formatVND } from "@pwpm/utils";
-import type { Financing, Transaction } from "@pwpm/shared";
+import type { Financing, InvestmentType, Transaction } from "@pwpm/shared";
 
 import { FinancingForm } from "./financing-form";
 import { FinancingRow } from "./financing-row";
 
 export function FinancingTab({
   investmentId,
+  investmentType,
   financings,
   transactions,
 }: {
   investmentId: string;
+  investmentType: InvestmentType;
   financings: Financing[];
   transactions: Transaction[];
 }) {
@@ -42,7 +44,12 @@ export function FinancingTab({
               </thead>
               <tbody>
                 {financings.map((f) => (
-                  <FinancingRow key={f.id} investmentId={investmentId} financing={f} />
+                  <FinancingRow
+                    key={f.id}
+                    investmentId={investmentId}
+                    investmentType={investmentType}
+                    financing={f}
+                  />
                 ))}
               </tbody>
             </table>
@@ -50,7 +57,7 @@ export function FinancingTab({
         </div>
       </div>
 
-      <FinancingForm investmentId={investmentId} />
+      <FinancingForm investmentId={investmentId} investmentType={investmentType} />
     </div>
   );
 }

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { FINANCING_SOURCES } from "@pwpm/shared";
+import { FINANCING_SOURCES, FINANCING_SOURCES_BY_INVESTMENT_TYPE } from "@pwpm/shared";
+import type { InvestmentType } from "@pwpm/shared";
 
 import { recomputeInvestmentSnapshot } from "@/lib/investments/recompute";
 import { createClient } from "@/lib/supabase/server";
@@ -58,13 +59,17 @@ export async function createFinancing(
 
   const { data: investment } = await supabase
     .from("investments")
-    .select("id")
+    .select("id, investment_type")
     .eq("id", investmentId)
     .eq("customer_id", user.id)
-    .eq("investment_type", "rental_property")
     .single();
   if (!investment) {
     return { error: "Không tìm thấy khoản đầu tư." };
+  }
+
+  const allowedSources = FINANCING_SOURCES_BY_INVESTMENT_TYPE[investment.investment_type as InvestmentType];
+  if (!allowedSources.includes(parsed.data.source_type)) {
+    return { error: "Nguồn vốn không hợp lệ cho khoản đầu tư này." };
   }
 
   const { error } = await supabase.from("financings").insert({
@@ -128,12 +133,17 @@ export async function updateFinancing(
 
   const { data: investment } = await supabase
     .from("investments")
-    .select("id")
+    .select("id, investment_type")
     .eq("id", investmentId)
     .eq("customer_id", user.id)
     .single();
   if (!investment) {
     return { error: "Không tìm thấy khoản đầu tư." };
+  }
+
+  const allowedSources = FINANCING_SOURCES_BY_INVESTMENT_TYPE[investment.investment_type as InvestmentType];
+  if (!allowedSources.includes(parsed.data.source_type)) {
+    return { error: "Nguồn vốn không hợp lệ cho khoản đầu tư này." };
   }
 
   const { error } = await supabase

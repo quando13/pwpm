@@ -2,16 +2,24 @@
 
 import { useState, useTransition } from "react";
 import { formatDate, formatVND } from "@pwpm/utils";
-import type { Financing, FinancingSource } from "@pwpm/shared";
+import { FINANCING_SOURCES_BY_INVESTMENT_TYPE } from "@pwpm/shared";
+import type { Financing, FinancingSource, InvestmentType } from "@pwpm/shared";
 
 import { EditIcon } from "@/components/icons";
 import { updateFinancing } from "@/lib/financing/actions";
 
 import { FINANCING_SOURCE_LABEL } from "./labels";
 
-const SOURCE_OPTIONS: FinancingSource[] = ["personal_capital", "bank_loan", "private_loan"];
-
-export function FinancingRow({ investmentId, financing }: { investmentId: string; financing: Financing }) {
+export function FinancingRow({
+  investmentId,
+  investmentType,
+  financing,
+}: {
+  investmentId: string;
+  investmentType: InvestmentType;
+  financing: Financing;
+}) {
+  const sourceOptions = FINANCING_SOURCES_BY_INVESTMENT_TYPE[investmentType];
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -80,7 +88,7 @@ export function FinancingRow({ investmentId, financing }: { investmentId: string
               onChange={(e) => setSource(e.target.value as FinancingSource)}
               className="h-7 rounded-md border border-input bg-background px-1.5 text-[11.5px]"
             >
-              {SOURCE_OPTIONS.map((s) => (
+              {sourceOptions.map((s) => (
                 <option key={s} value={s}>
                   {FINANCING_SOURCE_LABEL[s]}
                 </option>
@@ -127,7 +135,7 @@ export function FinancingRow({ investmentId, financing }: { investmentId: string
                   className="h-7 w-16 rounded-md border border-input bg-background px-1.5 text-right text-[11.5px] tabular-nums"
                 />
               </Field>
-              <Field label={source === "bank_loan" ? "Ngân hàng" : "Người cho vay"}>
+              <Field label={source === "bank_loan" ? "Ngân hàng" : source === "margin_loan" ? "Công ty chứng khoán" : "Người cho vay"}>
                 <input
                   value={lender}
                   onChange={(e) => setLender(e.target.value)}

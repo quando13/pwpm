@@ -143,6 +143,17 @@ function EquityStats({ snapshot }: { snapshot: PerformanceSnapshot }) {
         />
       </div>
 
+      {snapshot.outstanding_financing !== 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <Stat label="Dư nợ margin" value={formatVND(snapshot.outstanding_financing)} />
+          <Stat
+            label="Equity ròng (sau margin)"
+            value={formatVND(snapshot.equity)}
+            sub="Giá trị hiện tại − Dư nợ margin. ROI ở trên chưa tính đòn bẩy margin."
+          />
+        </div>
+      )}
+
       {(snapshot.realized_gain ?? 0) !== 0 && (
         <Stat
           label="Lãi/lỗ đã thực hiện (từ các lần bán)"

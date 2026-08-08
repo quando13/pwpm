@@ -129,13 +129,11 @@ export default async function InvestmentDetailPage({
             label="Giao dịch"
             active={activeTab === "transactions"}
           />
-          {investment.investment_type === "rental_property" && (
-            <TabLink
-              href={`/investments/${investment.id}?tab=financing`}
-              label="Tài trợ"
-              active={activeTab === "financing"}
-            />
-          )}
+          <TabLink
+            href={`/investments/${investment.id}?tab=financing`}
+            label="Tài trợ"
+            active={activeTab === "financing"}
+          />
           <TabLink
             href={`/investments/${investment.id}?tab=valuations`}
             label="Định giá"
@@ -158,8 +156,13 @@ export default async function InvestmentDetailPage({
           />
         )}
 
-        {activeTab === "financing" && investment.investment_type === "rental_property" && (
-          <FinancingTab investmentId={investment.id} financings={financings} transactions={transactions} />
+        {activeTab === "financing" && (
+          <FinancingTab
+            investmentId={investment.id}
+            investmentType={investment.investment_type}
+            financings={financings}
+            transactions={transactions}
+          />
         )}
 
         {activeTab === "transactions" && (
