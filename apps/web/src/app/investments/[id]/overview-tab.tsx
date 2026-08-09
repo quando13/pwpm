@@ -9,52 +9,50 @@ function sumByType(transactions: Transaction[], type: Transaction["transaction_t
   return transactions.filter((tx) => tx.transaction_type === type).reduce((sum, tx) => sum + tx.amount, 0);
 }
 
-// Cash-flow-relevant transaction types, signed the same way as computeRentalPropertySnapshot's
-// Cash Flow formula (rental_income in, everything else out).
-const CASH_FLOW_TYPE_SIGN: Record<string, 1 | -1> = {
+// Rental *business* operating cash flow only — rental income minus maintenance/renovation
+// — deliberately excludes loan_principal_payment/loan_interest_payment (confirmed
+// 2026-08-09): this chart treats the property as an independent rental operation, separate
+// from how it's financed. Debt service shows up instead in Row 2's "Tổng vốn góp" figure.
+const OPERATING_CASH_FLOW_TYPE_SIGN: Record<string, 1 | -1> = {
   rental_income: 1,
   maintenance_expense: -1,
-  loan_interest_payment: -1,
   renovation_expense: -1,
-  loan_principal_payment: -1,
 };
 
-function quarterOf(dateStr: string): { year: number; quarter: number } {
+function halfYearOf(dateStr: string): { year: number; half: 1 | 2 } {
   const [year, month] = dateStr.split("-").map(Number);
-  return { year, quarter: Math.ceil(month / 3) };
+  return { year, half: month <= 6 ? 1 : 2 };
 }
 
-// Running cumulative cash flow bucketed by quarter (not month) — keeps the point count low
-// enough to render in full without horizontal scrolling even for a multi-year holding.
-function buildQuarterlyCumulativeCashFlow(transactions: Transaction[]): { label: string; value: number }[] {
-  const relevant = transactions.filter((tx) => tx.transaction_type in CASH_FLOW_TYPE_SIGN);
+// Running cumulative operating cash flow bucketed by half-year (matches the fiscal-year
+// S1/S2 convention the customer already uses for loan statements) — keeps the point count
+// low enough to render in full without horizontal scrolling even for a multi-year holding.
+function buildSemiAnnualOperatingCashFlow(transactions: Transaction[]): { label: string; value: number }[] {
+  const relevant = transactions.filter((tx) => tx.transaction_type in OPERATING_CASH_FLOW_TYPE_SIGN);
   if (relevant.length === 0) return [];
 
-  const deltaByQuarter = new Map<string, number>();
+  const deltaByHalf = new Map<string, number>();
   for (const tx of relevant) {
-    const { year, quarter } = quarterOf(tx.transaction_date);
-    const key = `${year}-Q${quarter}`;
-    const sign = CASH_FLOW_TYPE_SIGN[tx.transaction_type];
-    deltaByQuarter.set(key, (deltaByQuarter.get(key) ?? 0) + sign * tx.amount);
+    const { year, half } = halfYearOf(tx.transaction_date);
+    const key = `${year}-S${half}`;
+    const sign = OPERATING_CASH_FLOW_TYPE_SIGN[tx.transaction_type];
+    deltaByHalf.set(key, (deltaByHalf.get(key) ?? 0) + sign * tx.amount);
   }
 
-  const quarterKeys = relevant.map((tx) => quarterOf(tx.transaction_date));
-  let { year, quarter } = quarterKeys.reduce((earliest, q) =>
-    q.year < earliest.year || (q.year === earliest.year && q.quarter < earliest.quarter) ? q : earliest,
+  const halves = relevant.map((tx) => halfYearOf(tx.transaction_date));
+  let { year, half } = halves.reduce((earliest, h) =>
+    h.year < earliest.year || (h.year === earliest.year && h.half < earliest.half) ? h : earliest,
   );
   const now = new Date();
-  const currentQuarter = { year: now.getFullYear(), quarter: Math.ceil((now.getMonth() + 1) / 3) };
+  const currentHalf = { year: now.getFullYear(), half: (now.getMonth() + 1 <= 6 ? 1 : 2) as 1 | 2 };
 
   const points: { label: string; value: number }[] = [];
   let cumulative = 0;
-  while (year < currentQuarter.year || (year === currentQuarter.year && quarter <= currentQuarter.quarter)) {
-    cumulative += deltaByQuarter.get(`${year}-Q${quarter}`) ?? 0;
-    points.push({ label: `Q${quarter}/${String(year).slice(2)}`, value: cumulative });
-    quarter += 1;
-    if (quarter > 4) {
-      quarter = 1;
-      year += 1;
-    }
+  while (year < currentHalf.year || (year === currentHalf.year && half <= currentHalf.half)) {
+    cumulative += deltaByHalf.get(`${year}-S${half}`) ?? 0;
+    points.push({ label: `S${half}/${String(year).slice(2)}`, value: cumulative });
+    half = half === 1 ? 2 : 1;
+    if (half === 1) year += 1;
   }
   return points;
 }
@@ -108,8 +106,11 @@ export function OverviewTab({
             financings={financings}
           />
           <div className="rounded-[14px] border border-input bg-surface p-4">
-            <div className="mb-1 text-[13px] font-bold">Báo cáo dòng tiền lũy kế theo quý</div>
-            <CumulativeCashFlowChart points={buildQuarterlyCumulativeCashFlow(transactions)} />
+            <div className="mb-1 text-[13px] font-bold">Dòng tiền kinh doanh cho thuê lũy kế (theo kỳ 6 tháng)</div>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              Chỉ tính thu nhập cho thuê và chi phí bảo trì/cải tạo — như một hoạt động kinh doanh độc lập, chưa gồm gốc/lãi vay.
+            </p>
+            <CumulativeCashFlowChart points={buildSemiAnnualOperatingCashFlow(transactions)} />
           </div>
         </>
       )}
@@ -206,10 +207,14 @@ function RentalPropertyStats({
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        <Stat label="Tổng vốn góp" value={formatVND(snapshot.invested_capital)} />
+        <Stat label="Vốn góp ban đầu" value={formatVND(snapshot.invested_capital)} />
         <Stat label="Gốc đã trả đến hiện tại" value={formatVND(principalPaid)} />
         <Stat label="Lãi đã trả đến hiện tại" value={formatVND(interestPaid)} />
-        <Stat label="Tổng chi phí vay" value={formatVND(principalPaid + interestPaid)} />
+        <Stat
+          label="Tổng vốn góp"
+          value={formatVND(snapshot.invested_capital + principalPaid + interestPaid)}
+          sub="Vốn góp ban đầu + gốc + lãi đã trả — tổng đã góp cho tài sản này"
+        />
       </div>
 
       {snapshot.realized_gain != null && (
