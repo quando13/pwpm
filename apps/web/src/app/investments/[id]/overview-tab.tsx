@@ -24,6 +24,13 @@ function halfYearOf(dateStr: string): { year: number; half: 1 | 2 } {
   return { year, half: month <= 6 ? 1 : 2 };
 }
 
+// Only the most recent N periods are shown — a long-held property (e.g. CT1, acquired
+// 2008) can accumulate decades of half-year points, which would defeat the "fits on one
+// screen" goal even at semi-annual granularity. The cumulative value at each shown point
+// still reflects the FULL history (computed from the true earliest period, not restarted
+// at the visible window) — only the trailing slice of already-cumulative points is dropped.
+const VISIBLE_PERIODS = 8;
+
 // Running cumulative operating cash flow bucketed by half-year (matches the fiscal-year
 // S1/S2 convention the customer already uses for loan statements) — keeps the point count
 // low enough to render in full without horizontal scrolling even for a multi-year holding.
@@ -54,7 +61,7 @@ function buildSemiAnnualOperatingCashFlow(transactions: Transaction[]): { label:
     half = half === 1 ? 2 : 1;
     if (half === 1) year += 1;
   }
-  return points;
+  return points.slice(-VISIBLE_PERIODS);
 }
 
 export function OverviewTab({
