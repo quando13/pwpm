@@ -33,6 +33,9 @@ pnpm-debug.log*
 # Design reference material (chat attachments, third-party inspiration images)
 docs/design/
 
+# Real customer financial data (brokerage statements, bank statements) — never committed
+docs/data/
+
 # Editor / OS
 .DS_Store
 Thumbs.db

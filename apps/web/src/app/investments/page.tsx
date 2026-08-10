@@ -106,9 +106,14 @@ export default async function InvestmentsPage({
           title="Danh mục đầu tư"
           subtitle="Nơi khai báo và quản lý toàn bộ khoản đầu tư của bạn."
           action={
-            <Button asChild>
-              <Link href="/investments/new">+ Thêm khoản đầu tư</Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/investments/import">Nhập danh mục chứng khoán</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/investments/new">+ Thêm khoản đầu tư</Link>
+              </Button>
+            </div>
           }
         />
 
